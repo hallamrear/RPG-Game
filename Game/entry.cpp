@@ -3,8 +3,14 @@
 
 #include "pch.h"
 #include "framework.h"
-#include "Game.h"
+#include "resource.h"
+
+#include "GameInstance.h"
+#include <chrono>
+#include <cstdio>
+#include <Defines.h>
 #include <Engine.h>
+#include <System/Debug.h>
 
 #define MAX_LOADSTRING 100
 
@@ -12,6 +18,7 @@
 HINSTANCE hInst;                                // current instance
 WCHAR szTitle[MAX_LOADSTRING];                  // The title bar text
 WCHAR szWindowClass[MAX_LOADSTRING];            // the main window class name
+GameInstance* gInstance = nullptr;
 
 // Forward declarations of functions included in this code module:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
@@ -26,6 +33,18 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 {
     UNREFERENCED_PARAMETER(hPrevInstance);
     UNREFERENCED_PARAMETER(lpCmdLine);
+
+
+#ifdef _DEBUG
+    if (!AttachConsole(ATTACH_PARENT_PROCESS))   // try to hijack existing console of command line
+        AllocConsole();                           // or create your own.
+
+    FILE* file = nullptr;
+    freopen_s(&file, "CONIN$", "r", stdin);
+    freopen_s(&file, "CONOUT$", "w", stdout);
+    freopen_s(&file, "CONOUT$", "w", stderr);
+#endif
+
 
     // Initialize global strings
     LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
@@ -42,17 +61,59 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     MSG msg;
 
+    gInstance = new GameInstance();
+
+    if (gInstance->Initialise() == false)
+    {
+        Debug::LogFatal("Failed to initialise game instance.\n");
+        return 1;
+    }
+
+    float deltaTime = 0.0f;
+    std::chrono::steady_clock::time_point currentTime = std::chrono::steady_clock::now();
+    std::chrono::steady_clock::time_point previousTime = std::chrono::steady_clock::now();
+    std::chrono::duration<double> clockDelta = { };
+    float accumulator = 0.0f;
+
+
     // Main message loop:
     while (GetMessage(&msg, nullptr, 0, 0))
     {
+
         if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
         {
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
+
+        if (gInstance->IsRunning() == false)
+        {
+            PostQuitMessage(0);
+        }
+
+        currentTime = std::chrono::steady_clock::now();
+        deltaTime = (float)std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - previousTime).count();
+
+        accumulator += deltaTime;
+
+        while (accumulator >= TARGET_FPS_FRAMETIME_FLOAT)
+        {
+            gInstance->ProcessInput();
+            gInstance->Update(TARGET_FPS_FRAMETIME_FLOAT);
+            accumulator -= TARGET_FPS_FRAMETIME_FLOAT;
+        }
+
+        gInstance->Render();
+
+        previousTime = currentTime;
     }
 
-    A::fnEngine();
+    if (gInstance)
+    {
+        gInstance->Shutdown();
+        delete gInstance;
+        gInstance = nullptr;
+    }
 
     return (int) msg.wParam;
 }

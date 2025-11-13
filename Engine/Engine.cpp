@@ -6,13 +6,13 @@
 
 #include "Engine.h"
 #include <windows.h>
-#include <debugapi.h>
 
-namespace A
+#include "System/Debug.h"
+
+namespace
 {
 	void fnEngine()
 	{
-		OutputDebugString(L"Hello World!");
-		MessageBox(NULL, L"Test", L"Test", MB_OK);
+
 	}
 }
