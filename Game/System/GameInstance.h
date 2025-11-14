@@ -1,10 +1,13 @@
 #pragma once
+#include <Graphics/Renderer.h>
 
 class GameInstance
 {
 private:
 	bool m_IsInitalised;
 	bool m_IsRunning;
+
+	Renderer m_Renderer;
 
 public:
 	GameInstance();
