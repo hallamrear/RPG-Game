@@ -180,6 +180,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="Defines.h" />
+    <ClInclude Include="Graphics\DX12Includes.h" />
     <ClInclude Include="Graphics\Renderer.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="System\Debug.h" />

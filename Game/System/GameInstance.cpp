@@ -34,7 +34,6 @@ bool GameInstance::Initialise()
 	m_IsInitalised = true;
 
 	m_IsInitalised &= Renderer::Initialise(m_Renderer);
-	m_IsInitalised &= Renderer::Initialise(m_Renderer);
 
 	SetIsRunning(m_IsInitalised);
 	return m_IsInitalised;
