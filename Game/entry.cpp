@@ -18,6 +18,7 @@
 
 // Global Variables:
 HINSTANCE hInst;                                // current instance
+HWND hWnd;
 WCHAR szTitle[MAX_LOADSTRING];                  // The title bar text
 WCHAR szWindowClass[MAX_LOADSTRING];            // the main window class name
 GameInstance* gInstance = nullptr;
@@ -63,7 +64,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     gInstance = new GameInstance();
 
-    if (gInstance->Initialise() == false)
+    if (gInstance->Initialise(hWnd) == false)
     {
         Debug::LogFatal("Failed to initialise game instance.\n");
         return 1;
@@ -165,7 +166,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
    hInst = hInstance; // Store instance handle in our global variable
 
-   HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
+   hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
       CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
 
    if (!hWnd)

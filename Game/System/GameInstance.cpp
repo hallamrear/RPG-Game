@@ -23,7 +23,7 @@ void GameInstance::SetIsRunning(const bool& state)
 	m_IsRunning = state;
 }
 
-bool GameInstance::Initialise()
+bool GameInstance::Initialise(const HWND& windowHandle)
 {
 	if(m_IsInitalised)
 	{ 
@@ -31,9 +31,15 @@ bool GameInstance::Initialise()
 		return false;
 	}
 
+	if (windowHandle == NULL)
+	{
+		Debug::LogWarning("Passing an invalid window handle.\n");
+		return false;
+	}
+
 	m_IsInitalised = true;
 
-	m_IsInitalised &= Renderer::Initialise(m_Renderer);
+	m_IsInitalised &= Renderer::Initialise(m_Renderer, windowHandle);
 
 	SetIsRunning(m_IsInitalised);
 	return m_IsInitalised;

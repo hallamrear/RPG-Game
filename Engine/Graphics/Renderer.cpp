@@ -5,6 +5,8 @@
 
 #define FAILED_RETURN(hr) if(FAILED(hr)) return !FAILED(hr);
 
+const int Renderer::m_SwapChainBufferCount = 2;
+
 Renderer::Renderer()
 {
     m_IsInitialised = false;
@@ -14,11 +16,16 @@ Renderer::Renderer()
     m_RTVDescriptorHeapSize = 0;
     m_DSVDescriptorHeapSize = 0;
     m_CBVSRVDescriptorHeapSize = 0;
-    m_BackbufferFormat = DXGI_FORMAT::DXGI_FORMAT_UNKNOWN;
+    m_BackbufferFormat = DXGI_FORMAT::DXGI_FORMAT_R8G8B8A8_UNORM;
     m_m4xMSAAQuality = 0;
     m_CommandQueue = nullptr;
     m_CommandList = nullptr;
     m_CommandAllocator = nullptr;
+    m_SwapChain = nullptr;
+    m_CurrentBackbufferIndex = 0;
+    m_WindowHandle = NULL;
+    m_RTVHeap = nullptr;
+    m_DSVHeap = nullptr;
 }
 
 Renderer::~Renderer()
@@ -31,7 +38,7 @@ const bool& Renderer::IsInitialised()
     return m_IsInitialised;
 }
 
-bool Renderer::Initialise(Renderer& renderer)
+bool Renderer::Initialise(Renderer& renderer, const HWND& windowHandle)
 {
     if (renderer.IsInitialised())
     {
@@ -39,10 +46,18 @@ bool Renderer::Initialise(Renderer& renderer)
         return false;
     }
 
+    if (windowHandle == NULL)
+    {
+        Debug::LogWarning("Passing an invalid window handle.\n");
+        return false;
+    }
+
+
     HRESULT hr = S_OK;
     renderer.m_IsInitialised = true;
+    renderer.m_WindowHandle = windowHandle;
 
-    hr = renderer.CreateDevice();
+    hr = renderer.CreateDeviceAndFactory();
     renderer.m_IsInitialised &= SUCCEEDED(hr);
     FAILED_RETURN(hr);
 
@@ -55,6 +70,14 @@ bool Renderer::Initialise(Renderer& renderer)
     FAILED_RETURN(hr);
 
     hr = renderer.CreateCommandObjects();
+    renderer.m_IsInitialised &= SUCCEEDED(hr);
+    FAILED_RETURN(hr)
+
+    hr = renderer.CreateSwapChain();
+    renderer.m_IsInitialised &= SUCCEEDED(hr);
+    FAILED_RETURN(hr)
+
+    hr = renderer.CreateDescriptorHeaps();
     renderer.m_IsInitialised &= SUCCEEDED(hr);
     FAILED_RETURN(hr)
 
@@ -74,17 +97,22 @@ void Renderer::Shutdown(Renderer& renderer)
         return;
     }
 
+    renderer.DestroyDescriptorHeaps();
+    renderer.DestroySwapChain();
     renderer.DestroyCommandObjects();
     renderer.ClearMultisamplingDetails();
     renderer.DestroyFence();
-    renderer.DestroyDevice();
+    renderer.DestroyDeviceAndFactory();
+
+    renderer.m_WindowHandle = NULL;
 }
 
-HRESULT Renderer::CreateDevice()
+HRESULT Renderer::CreateDeviceAndFactory()
 {
     HRESULT result = E_FAIL;
 
     D3D_FEATURE_LEVEL featureLevel = D3D_FEATURE_LEVEL_12_2;
+    UINT factoryFlags = 0;
 
 #if defined(DEBUG) || defined(_DEBUG)
     //Enabling D3D12 Debug layer.
@@ -99,10 +127,12 @@ HRESULT Renderer::CreateDevice()
     if (debug != nullptr && result == S_OK)
     {
         debug->EnableDebugLayer();
+        // Enable additional debug layers.
+        factoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
     }
 #endif
 
-    result = CreateDXGIFactory(IID_PPV_ARGS(&m_DXGIFactory));
+    result = CreateDXGIFactory2(factoryFlags, IID_PPV_ARGS(&m_DXGIFactory));
 
     //Create hardware device
     result = D3D12CreateDevice(nullptr, featureLevel, IID_PPV_ARGS(&m_Device));
@@ -115,7 +145,7 @@ HRESULT Renderer::CreateDevice()
     return result;
 }
 
-void Renderer::DestroyDevice()
+void Renderer::DestroyDeviceAndFactory()
 {
     if (m_Device != nullptr)
     {
@@ -173,8 +203,6 @@ HRESULT Renderer::DetermineMultisamplingDetails()
 
     if (m_Device == nullptr)
         return E_POINTER;
-
-    m_BackbufferFormat = DXGI_FORMAT::DXGI_FORMAT_R32G32B32A32_FLOAT;
 
     D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS multisampleQualityLevels;
     multisampleQualityLevels.Format = m_BackbufferFormat;
@@ -262,5 +290,77 @@ void Renderer::DestroyCommandObjects()
     {
         m_CommandQueue->Release();
         m_CommandQueue = nullptr;
+    }
+}
+
+HRESULT Renderer::CreateSwapChain()
+{
+    HRESULT result = E_FAIL;
+
+    if (m_DXGIFactory == nullptr || m_CommandQueue == nullptr)
+        return E_POINTER;
+
+    DXGI_SWAP_CHAIN_FLAG swapChainFlags = DXGI_SWAP_CHAIN_FLAG::DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+
+    DXGI_MODE_DESC bufferDesc{};
+    bufferDesc.Width = 0;
+    bufferDesc.Height = 0;
+    bufferDesc.RefreshRate.Numerator = 60;
+    bufferDesc.RefreshRate.Denominator = 1;
+    bufferDesc.Format = m_BackbufferFormat;
+    bufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER::DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
+    bufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
+
+    DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
+    swapChainDesc.Width = 0;  //Set to 0 so it can be taken from the window.
+    swapChainDesc.Height = 0; //Set to 0 so it can be taken from the window.
+    swapChainDesc.Format = m_BackbufferFormat;
+    swapChainDesc.Stereo = false;
+    swapChainDesc.BufferCount = m_SwapChainBufferCount;
+    swapChainDesc.BufferUsage = DXGI_USAGE_BACK_BUFFER;
+    swapChainDesc.Scaling = DXGI_SCALING::DXGI_SCALING_STRETCH;
+    swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT::DXGI_SWAP_EFFECT_FLIP_DISCARD;
+    swapChainDesc.AlphaMode = DXGI_ALPHA_MODE::DXGI_ALPHA_MODE_UNSPECIFIED;
+    swapChainDesc.Flags = swapChainFlags;
+    swapChainDesc.SampleDesc.Count = 1;
+    swapChainDesc.SampleDesc.Quality = 0;
+
+    result = m_DXGIFactory->CreateSwapChainForHwnd(
+        m_CommandQueue,
+        m_WindowHandle,
+        &swapChainDesc,
+        nullptr, nullptr, &m_SwapChain);
+
+    return result;
+}
+
+void Renderer::DestroySwapChain()
+{
+    if (m_SwapChain != nullptr)
+    {
+        m_SwapChain->Release();
+        m_SwapChain = nullptr;
+    }
+}
+
+HRESULT Renderer::CreateDescriptorHeaps()
+{
+    HRESULT result = E_FAIL;
+
+    return result;
+}
+
+void Renderer::DestroyDescriptorHeaps()
+{
+    if (m_RTVHeap != nullptr)
+    {
+        m_RTVHeap->Release();
+        m_RTVHeap = nullptr;
+    }
+
+    if (m_DSVHeap != nullptr)
+    {
+        m_DSVHeap->Release();
+        m_DSVHeap = nullptr;
     }
 }

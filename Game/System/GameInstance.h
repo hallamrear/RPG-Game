@@ -16,7 +16,7 @@ public:
 	const bool& IsRunning();
 	void SetIsRunning(const bool& state);
 
-	bool Initialise();
+	bool Initialise(const HWND& windowHandle);
 	void Shutdown();
 
 	void ProcessInput();
