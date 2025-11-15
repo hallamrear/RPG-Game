@@ -1,11 +1,12 @@
 #include "pch.h"
 #include "Renderer.h"
-#include <Graphics/DX12Includes.h>
 #include <System/Debug.h>
 
 #define FAILED_RETURN(hr) if(FAILED(hr)) return !FAILED(hr);
 
 const int Renderer::m_SwapChainBufferCount = 2;
+const DXGI_FORMAT Renderer::m_BackbufferFormat = DXGI_FORMAT::DXGI_FORMAT_R8G8B8A8_UNORM;
+const DXGI_FORMAT Renderer::m_DepthStencilBufferFormat = DXGI_FORMAT::DXGI_FORMAT_D32_FLOAT;
 
 Renderer::Renderer()
 {
@@ -16,7 +17,6 @@ Renderer::Renderer()
     m_RTVDescriptorHeapSize = 0;
     m_DSVDescriptorHeapSize = 0;
     m_CBVSRVDescriptorHeapSize = 0;
-    m_BackbufferFormat = DXGI_FORMAT::DXGI_FORMAT_R8G8B8A8_UNORM;
     m_m4xMSAAQuality = 0;
     m_CommandQueue = nullptr;
     m_CommandList = nullptr;
@@ -52,7 +52,6 @@ bool Renderer::Initialise(Renderer& renderer, const HWND& windowHandle)
         return false;
     }
 
-
     HRESULT hr = S_OK;
     renderer.m_IsInitialised = true;
     renderer.m_WindowHandle = windowHandle;
@@ -81,6 +80,18 @@ bool Renderer::Initialise(Renderer& renderer, const HWND& windowHandle)
     renderer.m_IsInitialised &= SUCCEEDED(hr);
     FAILED_RETURN(hr)
 
+    hr = renderer.CreateRenderTargetViews();
+    renderer.m_IsInitialised &= SUCCEEDED(hr);
+    FAILED_RETURN(hr)
+
+    hr = renderer.CreateDepthStencilBuffer();
+    renderer.m_IsInitialised &= SUCCEEDED(hr);
+    FAILED_RETURN(hr)
+
+    hr = renderer.SetupInitialViewportAndScissorRect();
+    renderer.m_IsInitialised &= SUCCEEDED(hr);
+    FAILED_RETURN(hr)
+
     if (renderer.IsInitialised() == false)
     {
         Debug::LogSevere("Failed to initialise renderer.\n");
@@ -97,6 +108,8 @@ void Renderer::Shutdown(Renderer& renderer)
         return;
     }
 
+    renderer.DestroyDepthStencilBuffer();
+    renderer.DestroyRenderTargetViews();
     renderer.DestroyDescriptorHeaps();
     renderer.DestroySwapChain();
     renderer.DestroyCommandObjects();
@@ -107,11 +120,21 @@ void Renderer::Shutdown(Renderer& renderer)
     renderer.m_WindowHandle = NULL;
 }
 
+const int& Renderer::GetWindowWidth() const
+{
+    return m_WindowWidth;
+}
+
+const int& Renderer::GetWindowHeight() const
+{
+    return m_WindowHeight;
+}
+
 HRESULT Renderer::CreateDeviceAndFactory()
 {
     HRESULT result = E_FAIL;
 
-    D3D_FEATURE_LEVEL featureLevel = D3D_FEATURE_LEVEL_12_2;
+    D3D_FEATURE_LEVEL featureLevel = D3D_FEATURE_LEVEL_12_1;
     UINT factoryFlags = 0;
 
 #if defined(DEBUG) || defined(_DEBUG)
@@ -311,9 +334,14 @@ HRESULT Renderer::CreateSwapChain()
     bufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER::DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
     bufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
 
+    RECT rect{};
+    GetWindowRect(m_WindowHandle, &rect);
+    m_WindowWidth = rect.right - rect.left;
+    m_WindowHeight = rect.bottom - rect.top;
+
     DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
-    swapChainDesc.Width = 0;  //Set to 0 so it can be taken from the window.
-    swapChainDesc.Height = 0; //Set to 0 so it can be taken from the window.
+    swapChainDesc.Width = m_WindowWidth;
+    swapChainDesc.Height = m_WindowHeight;
     swapChainDesc.Format = m_BackbufferFormat;
     swapChainDesc.Stereo = false;
     swapChainDesc.BufferCount = m_SwapChainBufferCount;
@@ -331,6 +359,12 @@ HRESULT Renderer::CreateSwapChain()
         &swapChainDesc,
         nullptr, nullptr, &m_SwapChain);
 
+    if (FAILED(result))
+    {
+        Debug::LogSevere("Failed to create swap chain.\n");
+        return result;
+    }
+
     return result;
 }
 
@@ -346,6 +380,32 @@ void Renderer::DestroySwapChain()
 HRESULT Renderer::CreateDescriptorHeaps()
 {
     HRESULT result = E_FAIL;
+    
+    D3D12_DESCRIPTOR_HEAP_DESC rtvDescriptorHeapDesc{};
+    rtvDescriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+    rtvDescriptorHeapDesc.NumDescriptors = m_SwapChainBufferCount;
+    rtvDescriptorHeapDesc.NodeMask = 0;
+    rtvDescriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAGS::D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+    result = m_Device->CreateDescriptorHeap(&rtvDescriptorHeapDesc, IID_PPV_ARGS(&m_RTVHeap));
+
+    if (FAILED(result))
+    {
+        Debug::LogSevere("Failed to create RTV descriptor heap.\n");
+        return result;
+    }
+
+    D3D12_DESCRIPTOR_HEAP_DESC dsvDescriptorHeapDesc{};
+    dsvDescriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+    dsvDescriptorHeapDesc.NumDescriptors = 1;
+    dsvDescriptorHeapDesc.NodeMask = 0;
+    dsvDescriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAGS::D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+    m_Device->CreateDescriptorHeap(&dsvDescriptorHeapDesc, IID_PPV_ARGS(&m_DSVHeap));
+
+    if (FAILED(result))
+    {
+        Debug::LogSevere("Failed to create DSV descriptor heap.\n");
+        return result;
+    }
 
     return result;
 }
@@ -362,5 +422,215 @@ void Renderer::DestroyDescriptorHeaps()
     {
         m_DSVHeap->Release();
         m_DSVHeap = nullptr;
+    }
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE Renderer::GetCurrentBackbufferView() const
+{
+    CUSTOM_ASSERT((m_RTVHeap != nullptr));
+    D3D12_CPU_DESCRIPTOR_HANDLE handle = D3D12_CPU_DESCRIPTOR_HANDLE();
+    handle.ptr = m_RTVHeap->GetCPUDescriptorHandleForHeapStart().ptr + (m_CurrentBackbufferIndex * m_RTVDescriptorHeapSize);
+    return handle;
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE Renderer::GetDepthStencilBufferView() const
+{
+    CUSTOM_ASSERT((m_DSVHeap != nullptr));
+    return m_DSVHeap->GetCPUDescriptorHandleForHeapStart();
+}
+
+HRESULT Renderer::CreateRenderTargetViews()
+{
+    HRESULT result = E_FAIL;
+
+    if (m_Device == nullptr || m_SwapChain == nullptr || m_RTVHeap == nullptr)
+    {
+        Debug::LogSevere("Tried to create render target views with invalid pointer value.\n");
+        return E_POINTER;
+    }
+    
+    if (m_SwapchainBuffers != nullptr)
+    {
+        Debug::LogSevere("Trying to create swap chain buffer list when they already exist.\n");
+        return E_POINTER;
+    }
+
+    m_SwapchainBuffers = new ID3D12Resource*[m_SwapChainBufferCount];
+
+    D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = m_RTVHeap->GetCPUDescriptorHandleForHeapStart();
+    
+    for (size_t i = 0; i < m_SwapChainBufferCount; i++)
+    {
+        result = m_SwapChain->GetBuffer(i, IID_PPV_ARGS(&m_SwapchainBuffers[i]));
+
+        if (FAILED(result))
+        {
+            Debug::LogSevere("Failed to get swap chain buffer %ui from swap chain.\n", i);
+            return result;
+        }
+
+        m_Device->CreateRenderTargetView(m_SwapchainBuffers[i], nullptr, rtvHandle);
+
+        rtvHandle.ptr += m_RTVDescriptorHeapSize;
+    }
+
+    return result;
+}
+
+void Renderer::DestroyRenderTargetViews()
+{
+    for (size_t i = 0; i < m_SwapChainBufferCount; i++)
+    {
+        m_SwapchainBuffers[i]->Release();
+        m_SwapchainBuffers[i] = nullptr;
+    }
+
+    delete[] m_SwapchainBuffers;
+    m_SwapchainBuffers = nullptr;
+}
+
+HRESULT Renderer::CreateDepthStencilBuffer()
+{
+    HRESULT result = E_FAIL;
+
+    if (m_Device == nullptr || m_CommandList == nullptr)
+    {
+        Debug::LogSevere("Tried to create depth stencil buffer with an invalid device.\n");
+        return E_POINTER;
+    }
+
+    D3D12_RESOURCE_DESC depthStencilDesc{};
+    depthStencilDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+    depthStencilDesc.Alignment = 0;
+    depthStencilDesc.Width = m_WindowWidth;
+    depthStencilDesc.Height = m_WindowHeight;
+    depthStencilDesc.DepthOrArraySize = 1;
+    depthStencilDesc.MipLevels = 1;
+    depthStencilDesc.Format = m_DepthStencilBufferFormat;
+    depthStencilDesc.SampleDesc.Count = 1;
+    depthStencilDesc.SampleDesc.Quality = 0;
+    depthStencilDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+    depthStencilDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+
+    D3D12_CLEAR_VALUE clearValue;
+    clearValue.Color[0] = 1.0f;
+    clearValue.Color[1] = 1.0f;
+    clearValue.Color[2] = 1.0f;
+    clearValue.Color[3] = 1.0f;
+    clearValue.Format = m_DepthStencilBufferFormat;
+    clearValue.DepthStencil.Depth = 1.0f;
+    clearValue.DepthStencil.Stencil = 0;
+
+    D3D12_HEAP_PROPERTIES heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+    result = m_Device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &depthStencilDesc, D3D12_RESOURCE_STATE_COMMON, &clearValue, IID_PPV_ARGS(&m_DepthStencilBuffer));
+
+    if (FAILED(result))
+    {
+        Debug::LogSevere("Failed to create commited device resource for depth stencil buffer\n.");
+        return result;
+    }
+
+    m_Device->CreateDepthStencilView(m_DepthStencilBuffer, nullptr, GetDepthStencilBufferView());
+
+    D3D12_RESOURCE_BARRIER resourceBarrier = CD3DX12_RESOURCE_BARRIER::Transition(m_DepthStencilBuffer, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+    m_CommandList->ResourceBarrier(1, &resourceBarrier);
+
+    return result;
+}
+
+void Renderer::DestroyDepthStencilBuffer()
+{
+    if (m_DepthStencilBuffer != nullptr)
+    {
+        m_DepthStencilBuffer->Release();
+        m_DepthStencilBuffer = nullptr;
+    }        
+}
+
+HRESULT Renderer::SetupInitialViewportAndScissorRect()
+{
+    HRESULT result = E_FAIL;
+
+    if (m_CommandList == nullptr)
+    {
+        Debug::LogSevere("Tried to set a viewport with an invalid command list.\n");
+        return E_POINTER;
+    }
+
+    m_Viewport.TopLeftX = 0.0f;
+    m_Viewport.TopLeftY = 0.0f;
+    m_Viewport.Width = (float)m_WindowWidth;
+    m_Viewport.Height = (float)m_WindowHeight;
+    m_Viewport.MinDepth = 0.0f;
+    m_Viewport.MaxDepth = 1.0f;
+
+    m_CommandList->RSSetViewports(1, &m_Viewport);
+
+    m_ScissorRect.left = 0;
+    m_ScissorRect.top = 0;
+    m_ScissorRect.right = m_WindowWidth;
+    m_ScissorRect.bottom = m_WindowHeight;
+    m_CommandList->RSSetScissorRects(1, &m_ScissorRect);
+
+    return S_OK;
+}
+
+HRESULT Renderer::FlushCommandQueue()
+{
+    HRESULT result = E_FAIL;
+    CUSTOM_ASSERT(m_IsInitialised);
+    m_CurrentFenceIndex++;
+    result = m_CommandQueue->Signal(m_Fence, m_CurrentFenceIndex);
+
+    if (FAILED(result))
+    {
+        Debug::LogSevere("Command Queue failed to signal fence.");
+        return result;
+    }
+
+    if (m_Fence->GetCompletedValue() < m_CurrentFenceIndex)
+    {
+        HANDLE eventHandle = CreateEventEx(nullptr, "Fence", 0, EVENT_ALL_ACCESS);
+        result = m_Fence->SetEventOnCompletion(m_CurrentFenceIndex, eventHandle);
+
+        if (FAILED(result))
+        {
+            Debug::LogSevere("Failed to set signal event for fence.");
+            return result;
+        }
+
+        WaitForSingleObject(eventHandle, INFINITE);
+        CloseHandle(eventHandle);
+    }
+
+    return result;
+}
+
+const DirectX::XMFLOAT4& Renderer::GetClearColour() const
+{
+    return m_ClearColour;
+}
+
+void Renderer::SetClearColour(const DirectX::XMFLOAT4& newColour)
+{
+    m_ClearColour = newColour;
+}
+
+void Renderer::ClearFrame()
+{
+    CUSTOM_ASSERT(m_IsInitialised);
+    float Colour[4] = { m_ClearColour.x, m_ClearColour.y, m_ClearColour.z, m_ClearColour.w };
+    m_CommandList->ClearDepthStencilView(GetDepthStencilBufferView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+    m_CommandList->ClearRenderTargetView(GetCurrentBackbufferView(), Colour, 0, nullptr);
+}
+
+void Renderer::PresentFrame()
+{
+    CUSTOM_ASSERT(m_IsInitialised);
+   
+    HRESULT hr = m_SwapChain->Present(0, 0);
+    if (FAILED(hr))
+    {
+        Debug::LogSevere("Failed to present swap chain.");
     }
 }

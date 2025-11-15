@@ -94,19 +94,19 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         }
 
         currentTime = std::chrono::steady_clock::now();
-        deltaTime = 1.0 / (std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - previousTime).count());
-
+        deltaTime = (std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - previousTime).count() / 1000.0);
+        deltaTime = min(deltaTime, 1.0f);
         accumulator += deltaTime;
 
-        printf("%f", (float)deltaTime);
+        printf("%f\n", (float)deltaTime);
 
         c = 0;
 
         while (accumulator >= TARGET_FPS_FRAMETIME_FLOAT)
         {
             gInstance->ProcessInput();
-            gInstance->Update(TARGET_FPS_FRAMETIME_FLOAT);
-            accumulator -= TARGET_FPS_FRAMETIME_FLOAT;
+            gInstance->Update(deltaTime);
+            accumulator -= deltaTime;
             c++;
         }
 

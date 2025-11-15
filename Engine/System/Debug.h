@@ -11,7 +11,7 @@ enum LOG_SEVERITY : int
 #ifdef _DEBUG
 #include <assert.h>
 #include <stdarg.h>
-#define CUSTOM_ASSERT(expression) if(!expression) { Debug::Log(LOG_SEVERITY::FATAL, "Condition: %s\n Value: %i\n File: %s\n Line: %i\n", #expression, (int)expression, __FILE__, __LINE__); assert(expression); }
+#define CUSTOM_ASSERT(expression) if(!(expression)) { Debug::Log(LOG_SEVERITY::FATAL, "Condition: %s\n Value: %i\n File: %s\n Line: %i\n", #expression, (int)expression, __FILE__, __LINE__); assert(expression); }
 #else
 #define CUSTOM_ASSERT(expression)
 #endif

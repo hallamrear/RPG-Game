@@ -5,6 +5,7 @@
 #pragma comment(lib, "D3D12.lib")
 #pragma comment(lib, "dxgi.lib")
 
+#include <Graphics/directx/d3dx12.h>
 #include <d3d12.h>
 #include <d3dcommon.h>
 #include <d3dcompiler.h>

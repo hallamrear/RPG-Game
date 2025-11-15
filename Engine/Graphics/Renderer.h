@@ -1,13 +1,17 @@
 #pragma once
+#include <Graphics/DX12Includes.h>
 
 class Renderer
 {
 private:
-
+	int m_WindowWidth;
+	int m_WindowHeight;
 	bool m_IsInitialised;
 	HWND m_WindowHandle;
+	DirectX::XMFLOAT4 m_ClearColour;
 
-	enum DXGI_FORMAT m_BackbufferFormat;
+	static const enum DXGI_FORMAT m_BackbufferFormat;
+	static const enum DXGI_FORMAT m_DepthStencilBufferFormat;
 
 	struct IDXGIFactory2* m_DXGIFactory;
 	struct ID3D12Device* m_Device;
@@ -17,6 +21,7 @@ private:
 	UINT m_RTVDescriptorHeapSize;
 	UINT m_DSVDescriptorHeapSize;
 	UINT m_CBVSRVDescriptorHeapSize;
+	int m_CurrentFenceIndex;
 	struct ID3D12Fence* m_Fence;
 	HRESULT CreateFence();
 	void DestroyFence();
@@ -41,6 +46,22 @@ private:
 	struct ID3D12DescriptorHeap* m_DSVHeap;
 	HRESULT CreateDescriptorHeaps();
 	void DestroyDescriptorHeaps();
+	struct D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentBackbufferView() const;
+	struct D3D12_CPU_DESCRIPTOR_HANDLE GetDepthStencilBufferView() const;
+
+	struct ID3D12Resource** m_SwapchainBuffers;
+	HRESULT CreateRenderTargetViews();
+	void DestroyRenderTargetViews();
+
+	ID3D12Resource* m_DepthStencilBuffer;
+	HRESULT CreateDepthStencilBuffer();
+	void DestroyDepthStencilBuffer();
+
+	D3D12_VIEWPORT m_Viewport;
+	D3D12_RECT m_ScissorRect;
+	HRESULT SetupInitialViewportAndScissorRect();
+
+	HRESULT FlushCommandQueue();
 
 protected:
 
@@ -50,6 +71,15 @@ public:
 
 	const bool& IsInitialised();
 
+	const DirectX::XMFLOAT4& GetClearColour() const;
+	void SetClearColour(const DirectX::XMFLOAT4& newColour);
+
 	static bool Initialise(Renderer& renderer, const HWND& windowHandle);
 	static void Shutdown(Renderer& renderer);
+
+	const int& GetWindowWidth() const;
+	const int& GetWindowHeight() const;
+
+	void ClearFrame();
+	void PresentFrame();
 };
