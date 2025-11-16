@@ -82,5 +82,7 @@ void GameInstance::Render()
 
 	m_Renderer.ClearFrame();
 
+
+
 	m_Renderer.PresentFrame();
 }

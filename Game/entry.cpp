@@ -70,35 +70,33 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         return 1;
     }
 
-    double deltaTime = 0.0f;
+    float deltaTime = 0.0f;
     std::chrono::steady_clock::time_point currentTime = std::chrono::steady_clock::now();
     std::chrono::steady_clock::time_point previousTime = std::chrono::steady_clock::now();
-    std::chrono::duration<double> clockDelta = { };
-    double accumulator = 0.0f;
+    std::chrono::duration<float> clockDelta = { };
+    float accumulator = 0.0f;
 
     int c = 0;
 
-    // Main message loop:
-    while (GetMessage(&msg, nullptr, 0, 0))
+    while (gInstance->IsRunning())
     {
-
-        if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
+        while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
         {
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
-        }
+            if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
+            {
+                TranslateMessage(&msg);
+                DispatchMessage(&msg);
+            }
 
-        if (gInstance->IsRunning() == false)
-        {
-            PostQuitMessage(0);
+            if (gInstance->IsRunning() == false)
+            {
+                PostQuitMessage(0);
+            }
         }
 
         currentTime = std::chrono::steady_clock::now();
-        deltaTime = (std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - previousTime).count() / 1000.0);
-        deltaTime = min(deltaTime, 1.0f);
+        deltaTime = (std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - previousTime).count() / 1000.0f);
         accumulator += deltaTime;
-
-        printf("%f\n", (float)deltaTime);
 
         c = 0;
 
@@ -110,8 +108,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             c++;
         }
 
-        printf("%i updates per render.\n", c);
         gInstance->Render();
+
+        printf("%i updates per render.\n", c);
 
         previousTime = currentTime;
     }

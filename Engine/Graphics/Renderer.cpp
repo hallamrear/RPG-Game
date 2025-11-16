@@ -584,7 +584,7 @@ HRESULT Renderer::FlushCommandQueue()
 
     if (FAILED(result))
     {
-        Debug::LogSevere("Command Queue failed to signal fence.");
+        Debug::LogSevere("Command Queue failed to signal fence.\n");
         return result;
     }
 
@@ -595,7 +595,7 @@ HRESULT Renderer::FlushCommandQueue()
 
         if (FAILED(result))
         {
-            Debug::LogSevere("Failed to set signal event for fence.");
+            Debug::LogSevere("Failed to set signal event for fence.\n");
             return result;
         }
 
@@ -619,18 +619,55 @@ void Renderer::SetClearColour(const DirectX::XMFLOAT4& newColour)
 void Renderer::ClearFrame()
 {
     CUSTOM_ASSERT(m_IsInitialised);
+    
+    if (FAILED(m_CommandAllocator->Reset()))
+    {
+        Debug::LogSevere("Failed to reset command allocator.\n");
+        return;
+    }
+
+    if (FAILED(m_CommandList->Reset(m_CommandAllocator, nullptr)))
+    {
+        Debug::LogSevere("Failed to reset command allocator.\n");
+        return;
+    }
+
+    D3D12_CPU_DESCRIPTOR_HANDLE backBufferHandle = GetCurrentBackbufferView();
+    D3D12_CPU_DESCRIPTOR_HANDLE dsvBufferHandle = GetDepthStencilBufferView();
+    D3D12_RESOURCE_BARRIER transition = CD3DX12_RESOURCE_BARRIER::Transition(m_SwapchainBuffers[m_CurrentBackbufferIndex], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+
+    m_CommandList->RSSetViewports(1, &m_Viewport);
+    m_CommandList->RSSetScissorRects(1, &m_ScissorRect); 
     float Colour[4] = { m_ClearColour.x, m_ClearColour.y, m_ClearColour.z, m_ClearColour.w };
-    m_CommandList->ClearDepthStencilView(GetDepthStencilBufferView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
-    m_CommandList->ClearRenderTargetView(GetCurrentBackbufferView(), Colour, 0, nullptr);
+    m_CommandList->ClearRenderTargetView(backBufferHandle, Colour, 0, nullptr);
+    m_CommandList->ClearDepthStencilView(dsvBufferHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+    m_CommandList->OMSetRenderTargets(1, &backBufferHandle, true, &dsvBufferHandle);
+    m_CommandList->ResourceBarrier(1, &transition);
 }
 
 void Renderer::PresentFrame()
 {
     CUSTOM_ASSERT(m_IsInitialised);
-   
+    if (FAILED(m_CommandList->Close()))
+    {
+        Debug::LogSevere("Failed to close command list.\n");
+        return;
+    }
+
+    ID3D12CommandList* commandLists = { m_CommandList };
+    m_CommandQueue->ExecuteCommandLists(1, &commandLists);
+
     HRESULT hr = m_SwapChain->Present(0, 0);
     if (FAILED(hr))
     {
-        Debug::LogSevere("Failed to present swap chain.");
+        Debug::LogSevere("Failed to present swap chain.\n");
+        return;
+    }
+
+    m_CurrentBackbufferIndex = (m_CurrentBackbufferIndex + 1) % m_SwapChainBufferCount;
+    if (FAILED(FlushCommandQueue()))
+    {
+        Debug::LogSevere("Failed to flush command queue.\n");
+        return;
     }
 }
