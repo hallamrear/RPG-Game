@@ -8,7 +8,13 @@
 #define PCH_H
 
 #include "framework.h"
+
+//System
 #include <Windows.h>
+
+//Standard Library
+#include <string>
+#include <vector>
 
 #include <Defines.h>
 

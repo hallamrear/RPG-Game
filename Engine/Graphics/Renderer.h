@@ -63,6 +63,9 @@ private:
 
 	HRESULT FlushCommandQueue();
 
+	HRESULT CreateInputAssembly();
+	void DestroyInputAssembly();
+
 protected:
 
 public:

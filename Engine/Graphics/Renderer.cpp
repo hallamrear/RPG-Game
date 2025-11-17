@@ -606,6 +606,16 @@ HRESULT Renderer::FlushCommandQueue()
     return result;
 }
 
+HRESULT Renderer::CreateInputAssembly()
+{
+    //pg 206
+    return E_NOTIMPL;
+}
+
+void Renderer::DestroyInputAssembly()
+{
+}
+
 const DirectX::XMFLOAT4& Renderer::GetClearColour() const
 {
     return m_ClearColour;

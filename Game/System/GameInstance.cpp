@@ -60,7 +60,7 @@ void GameInstance::ProcessInput()
 	if (!IsRunning())
 		return;
 
-	//Debug::LogMessage("Process Input\n");
+	Debug::LogMessage("Process Input\n");
 }
 
 void GameInstance::Update(const float& deltaTime)
@@ -68,7 +68,7 @@ void GameInstance::Update(const float& deltaTime)
 	if (!IsRunning())
 		return;
 
-	//Debug::LogMessage("Update\n");
+	Debug::LogMessage("Update\n");
 	DirectX::XMFLOAT4 cc = m_Renderer.GetClearColour();
 	cc.x += deltaTime;
 	cc.x = fmodf(cc.x, 1.0f);
