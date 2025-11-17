@@ -2,11 +2,10 @@
 #include "GeometryLoader.h"
 #include <System/Debug.h>
 
-#define TINYGLTF_IMPLEMENTATION
-#define STB_IMAGE_IMPLEMENTATION
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include <External/tiny_gltf.h>
+#include <System/FileLoadingIncludes.h>
 
+#include <System/TextureLoader.h>
+#include <Graphics/Texturing/Texture.h>
 #include <Graphics/Geometry/Mesh.h>
 #include <Graphics/Geometry/Model.h>
 
@@ -21,8 +20,67 @@ bool GeometryLoader::CreateModelFromGLTF(Model& model, tinygltf::Model& gltfMode
 
 bool GeometryLoader::LoadTexturesFromGLTF(Model& model, tinygltf::Model& gltfModel)
 {
-    std::vector<tinygltf::Texture> textures = gltfModel.textures;
+    size_t textureCount = gltfModel.textures.size();
 
+    if (textureCount == 0)
+    {
+        Debug::LogMessage("No textures found in file.\n");
+        return true;
+    }
+
+    for (size_t i = 0; i < textureCount; i++)
+    {
+        //Get texture from list.
+        const tinygltf::Texture& gltfTexture = gltfModel.textures[i];
+        //Get actual image from image list using source as index.
+        const tinygltf::Image& gltfImage = gltfModel.images[gltfTexture.source];
+
+        Texture* texture = new Texture();
+
+        if (gltfImage.uri.empty() && gltfImage.mimeType.empty())
+        {
+            Debug::LogWarning("Error loading image %i from file: No uri or mimeType found.\n");
+            continue;
+        }
+
+        bool imageLoaded = false;
+
+        if (gltfImage.uri.empty() == false)
+        {
+            //Check if texture already exists within texture map.
+
+
+            //Load image using image location.
+            imageLoaded = TextureLoader::LoadFromFile(*texture, gltfImage.uri);
+        }
+        else if (gltfImage.mimeType.empty() == false)
+        {
+            //Load image using buffer and mimeType.
+        }
+        else
+        {
+            Debug::LogWarning("Error loading image %i from file: No uri or mimeType found.\n");
+            continue;
+        }
+
+        if (imageLoaded)
+        {
+            //Add to texture map.
+            //Add to model texture list.
+        }
+        else
+        {
+            Debug::LogSevere("Error loading image %i from file.\n");
+
+            //Destroy texture object.
+            if (texture != nullptr)
+            {
+                delete texture;
+                texture = nullptr;
+            }
+        }
+
+    }
 
     return true;
 

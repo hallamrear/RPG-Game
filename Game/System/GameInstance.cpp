@@ -45,7 +45,6 @@ bool GameInstance::Initialise(const HWND& windowHandle)
 	Model model;
 	bool result = GeometryLoader::Load(model, "firetruck.glb");
 
-
 	m_IsInitalised &= Renderer::Initialise(m_Renderer, windowHandle);
 
 	SetIsRunning(m_IsInitalised);
