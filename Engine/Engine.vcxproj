@@ -179,6 +179,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="External\json.hpp" />
+    <ClInclude Include="External\stb_image.h" />
+    <ClInclude Include="External\stb_image_write.h" />
+    <ClInclude Include="External\tiny_gltf.h" />
+    <ClInclude Include="Graphics\Geometry\Model.h" />
+    <ClInclude Include="System\GeometryLoader.h" />
     <ClInclude Include="Graphics\ColourOnlyVertex.h" />
     <ClInclude Include="Defines.h" />
     <ClInclude Include="Graphics\directx\d3d12.h" />
@@ -208,6 +214,7 @@
     <ClInclude Include="Graphics\directx\dxgiformat.h" />
     <ClInclude Include="Graphics\DX12Includes.h" />
     <ClInclude Include="Graphics\Renderer.h" />
+    <ClInclude Include="Graphics\Geometry\Mesh.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="System\Debug.h" />
     <ClInclude Include="Engine.h" />
@@ -216,8 +223,11 @@
     <ClInclude Include="Graphics\Vertex.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Graphics\Geometry\Model.cpp" />
+    <ClCompile Include="System\GeometryLoader.cpp" />
     <ClCompile Include="Graphics\ColourOnlyVertex.cpp" />
     <ClCompile Include="Graphics\Renderer.cpp" />
+    <ClCompile Include="Graphics\Geometry\Mesh.cpp" />
     <ClCompile Include="System\Debug.cpp" />
     <ClCompile Include="Engine.cpp" />
     <ClCompile Include="pch.cpp">

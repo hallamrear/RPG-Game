@@ -1,6 +1,8 @@
 #include "pch.h"
 #include "GameInstance.h"
 #include <System/Debug.h>
+#include <Graphics/Geometry/Model.h>
+#include <System/GeometryLoader.h>
 
 GameInstance::GameInstance()
 {
@@ -38,6 +40,11 @@ bool GameInstance::Initialise(const HWND& windowHandle)
 	}
 
 	m_IsInitalised = true;
+
+
+	Model model;
+	bool result = GeometryLoader::Load(model, "firetruck.glb");
+
 
 	m_IsInitalised &= Renderer::Initialise(m_Renderer, windowHandle);
 

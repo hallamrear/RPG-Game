@@ -17,6 +17,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "References", "References", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
 	ProjectSection(SolutionItems) = preProject
 		References\1200px-Fire.png = References\1200px-Fire.png
+		References\gltfOverview-2.0.0d.png = References\gltfOverview-2.0.0d.png
 		References\Old-School-Runescape-Beginner-Tips-Feature-Image.png = References\Old-School-Runescape-Beginner-Tips-Feature-Image.png
 	EndProjectSection
 EndProject
