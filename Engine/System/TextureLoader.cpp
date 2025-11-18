@@ -2,9 +2,50 @@
 #include "TextureLoader.h"
 #include <System/FileLoadingIncludes.h>
 #include <Graphics/Texturing/Texture.h>
+#include <Graphics/DX12Includes.h>
+#include <Graphics/Renderer.h>
+#include <System/Debug.h>
+
+D3D12_SHADER_RESOURCE_VIEW_DESC  TextureLoader::GetTexture2DResourceViewDescription()
+{
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION::D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+}
+
+bool TextureLoader::LoadFromData(Renderer& renderer, Texture& texture, const void* data, const size_t& bytes, const int& width, const int& height)
+{
+	if (texture.IsLoaded())
+	{
+		Debug::LogSevere("Creating an object in an already initialised texture.\n");
+		return false;
+	}
+
+	ID3D12Device* device = renderer.GetDevice();
+
+	if (device == nullptr)
+	{
+		Debug::LogSevere("Returned an invalid device object during texture creation.\n");
+		return false;
+	}
+
+	texture.m_Resource;
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = GetTexture2DResourceViewDescription();
+
+	device->CreateShaderResourceView(texture.m_Resource, &srvDesc, destDescriptor);
+
+
+}
 
 bool TextureLoader::LoadFromFile(Texture& texture, const std::string& path)
 {
+
+
+
+
 	return false;
 }
 

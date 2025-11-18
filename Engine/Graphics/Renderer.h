@@ -74,6 +74,9 @@ public:
 
 	const bool& IsInitialised();
 
+	const ID3D12Device* GetDevice() const;
+	ID3D12Device* GetDevice();
+
 	const DirectX::XMFLOAT4& GetClearColour() const;
 	void SetClearColour(const DirectX::XMFLOAT4& newColour);
 

@@ -38,6 +38,18 @@ const bool& Renderer::IsInitialised()
     return m_IsInitialised;
 }
 
+const ID3D12Device* Renderer::GetDevice() const
+{
+    CUSTOM_ASSERT(m_IsInitialised);
+    return m_Device;
+}
+
+ID3D12Device* Renderer::GetDevice()
+{
+    CUSTOM_ASSERT(m_IsInitialised);
+    return m_Device;
+}
+
 bool Renderer::Initialise(Renderer& renderer, const HWND& windowHandle)
 {
     if (renderer.IsInitialised())

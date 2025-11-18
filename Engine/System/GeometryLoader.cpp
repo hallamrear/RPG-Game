@@ -49,7 +49,6 @@ bool GeometryLoader::LoadTexturesFromGLTF(Model& model, tinygltf::Model& gltfMod
         {
             //Check if texture already exists within texture map.
 
-
             //Load image using image location.
             imageLoaded = TextureLoader::LoadFromFile(*texture, gltfImage.uri);
         }
