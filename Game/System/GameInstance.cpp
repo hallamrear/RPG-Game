@@ -3,11 +3,13 @@
 #include <System/Debug.h>
 #include <Graphics/Geometry/Model.h>
 #include <System/GeometryLoader.h>
+#include <Graphics/ConstantBuffer.h>
 
 GameInstance::GameInstance()
 {
 	m_IsInitalised = false;
 	m_IsRunning = false;
+	m_ConstantBuffer = nullptr;
 }
 
 GameInstance::~GameInstance()
@@ -41,11 +43,12 @@ bool GameInstance::Initialise(const HWND& windowHandle)
 
 	m_IsInitalised = true;
 
+	m_IsInitalised &= Renderer::Initialise(m_Renderer, windowHandle);
 
 	Model model;
-	bool result = GeometryLoader::Load(model, "firetruck.glb");
+	GeometryLoader::Load(m_Renderer, model, "firetruck.glb");
 
-	m_IsInitalised &= Renderer::Initialise(m_Renderer, windowHandle);
+	m_ConstantBuffer = new ConstantBuffer();
 
 	SetIsRunning(m_IsInitalised);
 	return m_IsInitalised;
@@ -55,6 +58,12 @@ void GameInstance::Shutdown()
 {
 	if (!m_IsInitalised)
 		return;
+
+	if (m_ConstantBuffer)
+	{
+		delete m_ConstantBuffer;
+		m_ConstantBuffer = nullptr;
+	}
 
 	Renderer::Shutdown(m_Renderer);
 
@@ -78,6 +87,7 @@ void GameInstance::Update(const float& deltaTime)
 	DirectX::XMFLOAT4 cc = m_Renderer.GetClearColour();
 	cc.x += deltaTime;
 	cc.x = fmodf(cc.x, 1.0f);
+
 	m_Renderer.SetClearColour(cc);
 }
 

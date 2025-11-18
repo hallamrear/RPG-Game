@@ -8,17 +8,18 @@
 #include <Graphics/Texturing/Texture.h>
 #include <Graphics/Geometry/Mesh.h>
 #include <Graphics/Geometry/Model.h>
+#include <Graphics/Renderer.h>
 
-bool GeometryLoader::CreateModelFromGLTF(Model& model, tinygltf::Model& gltfModel)
+bool GeometryLoader::CreateModelFromGLTF(Renderer& renderer, Model& model, tinygltf::Model& gltfModel)
 {
     bool loadedOk = true;
 
-    loadedOk &= LoadTexturesFromGLTF(model, gltfModel);
+    loadedOk &= LoadTexturesFromGLTF(renderer, model, gltfModel);
 
     return false;
 }
 
-bool GeometryLoader::LoadTexturesFromGLTF(Model& model, tinygltf::Model& gltfModel)
+bool GeometryLoader::LoadTexturesFromGLTF(Renderer& renderer, Model& model, tinygltf::Model& gltfModel)
 {
     size_t textureCount = gltfModel.textures.size();
 
@@ -50,7 +51,7 @@ bool GeometryLoader::LoadTexturesFromGLTF(Model& model, tinygltf::Model& gltfMod
             //Check if texture already exists within texture map.
 
             //Load image using image location.
-            imageLoaded = TextureLoader::LoadFromFile(*texture, gltfImage.uri);
+            imageLoaded = TextureLoader::LoadFromFile(renderer, *texture, gltfImage.uri);
         }
         else if (gltfImage.mimeType.empty() == false)
         {
@@ -85,7 +86,7 @@ bool GeometryLoader::LoadTexturesFromGLTF(Model& model, tinygltf::Model& gltfMod
 
 }
 
-bool GeometryLoader::Load(Model& model, const std::string& path)
+bool GeometryLoader::Load(Renderer& renderer, Model& model, const std::string& path)
 {
     std::filesystem::path filepath = path;
  
@@ -134,7 +135,7 @@ bool GeometryLoader::Load(Model& model, const std::string& path)
         return false;
     }
 
-    loadedGltf = CreateModelFromGLTF(model, gltfModel);
+    loadedGltf = CreateModelFromGLTF(renderer, model, gltfModel);
 
     if (loadedGltf == false)
     {

@@ -6,8 +6,8 @@ class GameInstance
 private:
 	bool m_IsInitalised;
 	bool m_IsRunning;
-
 	Renderer m_Renderer;
+	ConstantBuffer* m_ConstantBuffer;
 
 public:
 	GameInstance();

@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "Renderer.h"
 #include <System/Debug.h>
+#include <Graphics/ConstantBuffer.h>
 
 #define FAILED_RETURN(hr) if(FAILED(hr)) return !FAILED(hr);
 
@@ -10,6 +11,7 @@ const DXGI_FORMAT Renderer::m_DepthStencilBufferFormat = DXGI_FORMAT::DXGI_FORMA
 
 Renderer::Renderer()
 {
+    m_ClearColour = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
     m_IsInitialised = false;
     m_DXGIFactory = nullptr;
     m_Device = nullptr;
@@ -26,6 +28,14 @@ Renderer::Renderer()
     m_WindowHandle = NULL;
     m_RTVHeap = nullptr;
     m_DSVHeap = nullptr;
+    m_ConstantBufferArray = nullptr;
+    m_CurrentFenceIndex = 0;
+    m_WindowHeight = 0;
+    m_WindowWidth = 0;
+    m_SwapchainBuffers = nullptr;
+    m_Viewport = { 0.0f, 0.0f, 0.0f, 0.0f };
+    m_ScissorRect = {};
+    m_DepthStencilBuffer = nullptr;
 }
 
 Renderer::~Renderer()
@@ -48,6 +58,11 @@ ID3D12Device* Renderer::GetDevice()
 {
     CUSTOM_ASSERT(m_IsInitialised);
     return m_Device;
+}
+
+HRESULT Renderer::CreateResource(ID3D12Resource& resource, const D3D12_RESOURCE_DESC& resDesc)
+{
+    return E_NOTIMPL;
 }
 
 bool Renderer::Initialise(Renderer& renderer, const HWND& windowHandle)
@@ -104,6 +119,19 @@ bool Renderer::Initialise(Renderer& renderer, const HWND& windowHandle)
     renderer.m_IsInitialised &= SUCCEEDED(hr);
     FAILED_RETURN(hr)
 
+    //hr = renderer.CreateInputAssembly();
+    renderer.m_IsInitialised &= SUCCEEDED(hr);
+    FAILED_RETURN(hr)
+
+    hr = renderer.CreateConstantBufferHeap();
+    renderer.m_IsInitialised &= SUCCEEDED(hr);
+    FAILED_RETURN(hr)
+
+    hr = renderer.CreateConstantBuffers();
+    renderer.m_IsInitialised &= SUCCEEDED(hr);
+    FAILED_RETURN(hr)
+
+
     if (renderer.IsInitialised() == false)
     {
         Debug::LogSevere("Failed to initialise renderer.\n");
@@ -120,6 +148,9 @@ void Renderer::Shutdown(Renderer& renderer)
         return;
     }
 
+    renderer.DestroyConstantBuffers();
+    renderer.DestroyConstantBufferHeap();
+    renderer.DestroyInputAssembly();
     renderer.DestroyDepthStencilBuffer();
     renderer.DestroyRenderTargetViews();
     renderer.DestroyDescriptorHeaps();
@@ -611,8 +642,11 @@ HRESULT Renderer::FlushCommandQueue()
             return result;
         }
 
-        WaitForSingleObject(eventHandle, INFINITE);
-        CloseHandle(eventHandle);
+        if (eventHandle != NULL)
+        {
+            WaitForSingleObject(eventHandle, INFINITE);
+            CloseHandle(eventHandle);
+        }
     }
 
     return result;
@@ -628,6 +662,63 @@ void Renderer::DestroyInputAssembly()
 {
 }
 
+HRESULT Renderer::CreateConstantBuffers()
+{
+    CD3DX12_RESOURCE_DESC resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(ConstantBuffer) * MAX_NUM_ENTITIES);
+    CD3DX12_HEAP_PROPERTIES heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+
+    HRESULT result = m_Device->CreateCommittedResource(
+        &heapProperties,
+        D3D12_HEAP_FLAG_NONE,
+        &resourceDesc,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(&m_ConstantBufferArray));
+
+    if (FAILED(result))
+    {
+        Debug::LogSevere("Failed during constant buffer array creation.\n");
+        return result;
+    }
+
+    D3D12_GPU_VIRTUAL_ADDRESS bufferAddr = m_ConstantBufferArray->GetGPUVirtualAddress();
+    D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc{};
+    cbvDesc.BufferLocation = bufferAddr;
+    cbvDesc.SizeInBytes = sizeof(ConstantBuffer) * MAX_NUM_ENTITIES;
+    m_Device->CreateConstantBufferView(&cbvDesc, m_CBVHeap->GetCPUDescriptorHandleForHeapStart());
+
+    return S_OK;
+}
+
+void Renderer::DestroyConstantBuffers()
+{
+    if (m_ConstantBufferArray != nullptr)
+    {
+        m_ConstantBufferArray->Release();
+        m_ConstantBufferArray = nullptr;
+    }
+}
+
+HRESULT Renderer::CreateConstantBufferHeap()
+{
+    D3D12_DESCRIPTOR_HEAP_DESC heapDesc{};
+    heapDesc.NumDescriptors = 1;
+    heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+    heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+    heapDesc.NodeMask = 0;
+
+    return m_Device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&m_CBVHeap));
+}
+
+void Renderer::DestroyConstantBufferHeap()
+{
+    if (m_CBVHeap != nullptr)
+    {
+        m_CBVHeap->Release();
+        m_CBVHeap = nullptr;
+    }
+}
+
 const DirectX::XMFLOAT4& Renderer::GetClearColour() const
 {
     return m_ClearColour;
@@ -636,6 +727,30 @@ const DirectX::XMFLOAT4& Renderer::GetClearColour() const
 void Renderer::SetClearColour(const DirectX::XMFLOAT4& newColour)
 {
     m_ClearColour = newColour;
+}
+
+HRESULT Renderer::UpdateConstantBuffer(const int& entityIndex, ConstantBuffer& cb)
+{
+    CUSTOM_ASSERT(m_IsInitialised);
+
+    BYTE* mappedData = nullptr;
+    HRESULT result = m_ConstantBufferArray->Map(0, nullptr, reinterpret_cast<void**>(&mappedData));
+    if (FAILED(result))
+    {
+        Debug::LogSevere("Failed to map constant buffer address for update.\n");
+        return result;
+    }
+
+    memcpy(&mappedData, &cb, sizeof(ConstantBuffer));
+
+    if (m_ConstantBufferArray != nullptr)
+    {
+        m_ConstantBufferArray->Unmap(0, nullptr);
+    }
+
+    mappedData = nullptr;
+
+    return S_OK;
 }
 
 void Renderer::ClearFrame()
@@ -654,22 +769,31 @@ void Renderer::ClearFrame()
         return;
     }
 
+    m_CommandList->RSSetViewports(1, &m_Viewport);
+    m_CommandList->RSSetScissorRects(1, &m_ScissorRect);
+
     D3D12_CPU_DESCRIPTOR_HANDLE backBufferHandle = GetCurrentBackbufferView();
     D3D12_CPU_DESCRIPTOR_HANDLE dsvBufferHandle = GetDepthStencilBufferView();
-    D3D12_RESOURCE_BARRIER transition = CD3DX12_RESOURCE_BARRIER::Transition(m_SwapchainBuffers[m_CurrentBackbufferIndex], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 
-    m_CommandList->RSSetViewports(1, &m_Viewport);
-    m_CommandList->RSSetScissorRects(1, &m_ScissorRect); 
-    float Colour[4] = { m_ClearColour.x, m_ClearColour.y, m_ClearColour.z, m_ClearColour.w };
-    m_CommandList->ClearRenderTargetView(backBufferHandle, Colour, 0, nullptr);
-    m_CommandList->ClearDepthStencilView(dsvBufferHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
-    m_CommandList->OMSetRenderTargets(1, &backBufferHandle, true, &dsvBufferHandle);
+    D3D12_RESOURCE_BARRIER transition = CD3DX12_RESOURCE_BARRIER::Transition(m_SwapchainBuffers[m_CurrentBackbufferIndex], D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
     m_CommandList->ResourceBarrier(1, &transition);
+
+    float Colour[4] = { m_ClearColour.x, m_ClearColour.y, m_ClearColour.z, m_ClearColour.w };
+    m_CommandList->ClearDepthStencilView(dsvBufferHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+    m_CommandList->ClearRenderTargetView(backBufferHandle, Colour, 0, nullptr);
+    m_CommandList->OMSetRenderTargets(1, &backBufferHandle, true, &dsvBufferHandle);
+
+    ID3D12DescriptorHeap* heaps[] = { m_CBVHeap };
+    m_CommandList->SetDescriptorHeaps(_countof(heaps), heaps);
 }
 
 void Renderer::PresentFrame()
 {
     CUSTOM_ASSERT(m_IsInitialised);
+
+    D3D12_RESOURCE_BARRIER transition = CD3DX12_RESOURCE_BARRIER::Transition(m_SwapchainBuffers[m_CurrentBackbufferIndex], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+    m_CommandList->ResourceBarrier(1, &transition);
+
     if (FAILED(m_CommandList->Close()))
     {
         Debug::LogSevere("Failed to close command list.\n");
@@ -682,6 +806,8 @@ void Renderer::PresentFrame()
     HRESULT hr = m_SwapChain->Present(0, 0);
     if (FAILED(hr))
     {
+        HRESULT removalReason = m_Device->GetDeviceRemovedReason();
+
         Debug::LogSevere("Failed to present swap chain.\n");
         return;
     }

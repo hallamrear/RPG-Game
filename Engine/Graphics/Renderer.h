@@ -1,6 +1,8 @@
 #pragma once
 #include <Graphics/DX12Includes.h>
 
+class ConstantBuffer;
+
 class Renderer
 {
 private:
@@ -66,6 +68,14 @@ private:
 	HRESULT CreateInputAssembly();
 	void DestroyInputAssembly();
 
+	ID3D12Resource* m_ConstantBufferArray;
+	HRESULT CreateConstantBuffers();
+	void DestroyConstantBuffers();
+
+	ID3D12DescriptorHeap* m_CBVHeap;
+	HRESULT CreateConstantBufferHeap();
+	void DestroyConstantBufferHeap();
+
 protected:
 
 public:
@@ -77,8 +87,12 @@ public:
 	const ID3D12Device* GetDevice() const;
 	ID3D12Device* GetDevice();
 
+	HRESULT CreateResource(ID3D12Resource& resource, const D3D12_RESOURCE_DESC& resDesc);
+
 	const DirectX::XMFLOAT4& GetClearColour() const;
 	void SetClearColour(const DirectX::XMFLOAT4& newColour);
+
+	HRESULT UpdateConstantBuffer(const int& entityIndex, ConstantBuffer& cb);
 
 	static bool Initialise(Renderer& renderer, const HWND& windowHandle);
 	static void Shutdown(Renderer& renderer);
