@@ -38,15 +38,18 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     UNREFERENCED_PARAMETER(lpCmdLine);
 
 
-#ifdef _DEBUG
-    if (!AttachConsole(ATTACH_PARENT_PROCESS))   // try to hijack existing console of command line
-        AllocConsole();                           // or create your own.
+#if defined(DEBUG) | defined(_DEBUG)
+    if (!AttachConsole(ATTACH_PARENT_PROCESS))
+        AllocConsole();
 
     FILE* file = nullptr;
     freopen_s(&file, "CONIN$", "r", stdin);
     freopen_s(&file, "CONOUT$", "w", stdout);
     freopen_s(&file, "CONOUT$", "w", stderr);
+
+    _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 #endif
+
     // Initialize global strings
     LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
     LoadStringW(hInstance, IDC_GAME, szWindowClass, MAX_LOADSTRING);
@@ -59,8 +62,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     }
 
     HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_GAME));
-
-    MSG msg;
 
     gInstance = new GameInstance();
 
@@ -78,6 +79,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     int c = 0;
 
+    MSG msg{};
     while (gInstance->IsRunning())
     {
         while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
@@ -121,6 +123,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         delete gInstance;
         gInstance = nullptr;
     }
+
+#if defined(DEBUG) | defined(_DEBUG)
+    FreeConsole();
+#endif
 
     return (int) msg.wParam;
 }
@@ -220,6 +226,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         break;
     case WM_DESTROY:
         PostQuitMessage(0);
+        gInstance->SetIsRunning(false);
         break;
     default:
         return DefWindowProc(hWnd, message, wParam, lParam);

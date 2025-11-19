@@ -1,5 +1,6 @@
 #pragma once
 #include <Graphics/DX12Includes.h>
+#include <Defines.h>
 
 class ConstantBuffer;
 
@@ -65,16 +66,36 @@ private:
 
 	HRESULT FlushCommandQueue();
 
-	HRESULT CreateInputAssembly();
-	void DestroyInputAssembly();
+	std::vector<D3D12_INPUT_ELEMENT_DESC> m_DefaultInputLayout;
+	std::vector<D3D12_INPUT_ELEMENT_DESC> m_ColourOnlyInputLayout;
+	HRESULT CreateInputLayout();
+	void DestroyInputLayout();
 
-	ID3D12Resource* m_ConstantBufferArray;
+	ID3D12Resource* m_ConstantBufferArray[MAX_NUM_ENTITIES];
 	HRESULT CreateConstantBuffers();
 	void DestroyConstantBuffers();
 
 	ID3D12DescriptorHeap* m_CBVHeap;
 	HRESULT CreateConstantBufferHeap();
 	void DestroyConstantBufferHeap();
+
+	ID3D12RootSignature* m_RootSignature;
+	HRESULT CreateRootSignatureAndDescriptorTable();
+	void DestroyRootSignatureAndDescriptorTable();
+
+
+	ID3DBlob* m_DefaultPixelShaderBlob;
+	ID3DBlob* m_DefaultVertexShaderBlob;
+	ID3DBlob* m_ColourOnlyPixelShaderBlob;
+	ID3DBlob* m_ColourOnlyVertexShaderBlob;
+	HRESULT FindAndCreateShaders();
+	HRESULT ReadShaderData(const std::string& filename, ID3DBlob*& targetBlob);
+	void DestroyLoadedShaders();
+
+	ID3D12PipelineState* m_ColourOnlyPipeline;
+	ID3D12PipelineState* m_DefaultPipeline;
+	HRESULT CreateGraphicsPipelines();
+	void DestroyGraphicsPipelines();
 
 protected:
 

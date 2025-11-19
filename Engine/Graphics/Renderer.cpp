@@ -2,6 +2,11 @@
 #include "Renderer.h"
 #include <System/Debug.h>
 #include <Graphics/ConstantBuffer.h>
+#include <Graphics/Vertex.h>
+#include <Graphics/ColourOnlyVertex.h>
+#include <filesystem>
+#include <fstream>
+#include <iostream>
 
 #define FAILED_RETURN(hr) if(FAILED(hr)) return !FAILED(hr);
 
@@ -11,6 +16,7 @@ const DXGI_FORMAT Renderer::m_DepthStencilBufferFormat = DXGI_FORMAT::DXGI_FORMA
 
 Renderer::Renderer()
 {
+    m_CBVHeap = nullptr;
     m_ClearColour = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
     m_IsInitialised = false;
     m_DXGIFactory = nullptr;
@@ -28,7 +34,6 @@ Renderer::Renderer()
     m_WindowHandle = NULL;
     m_RTVHeap = nullptr;
     m_DSVHeap = nullptr;
-    m_ConstantBufferArray = nullptr;
     m_CurrentFenceIndex = 0;
     m_WindowHeight = 0;
     m_WindowWidth = 0;
@@ -36,6 +41,11 @@ Renderer::Renderer()
     m_Viewport = { 0.0f, 0.0f, 0.0f, 0.0f };
     m_ScissorRect = {};
     m_DepthStencilBuffer = nullptr;
+
+    for (size_t i = 0; i < MAX_NUM_ENTITIES; i++)
+    {
+        m_ConstantBufferArray[i] = { nullptr };
+    }
 }
 
 Renderer::~Renderer()
@@ -119,7 +129,7 @@ bool Renderer::Initialise(Renderer& renderer, const HWND& windowHandle)
     renderer.m_IsInitialised &= SUCCEEDED(hr);
     FAILED_RETURN(hr)
 
-    //hr = renderer.CreateInputAssembly();
+    hr = renderer.CreateInputLayout();
     renderer.m_IsInitialised &= SUCCEEDED(hr);
     FAILED_RETURN(hr)
 
@@ -131,10 +141,27 @@ bool Renderer::Initialise(Renderer& renderer, const HWND& windowHandle)
     renderer.m_IsInitialised &= SUCCEEDED(hr);
     FAILED_RETURN(hr)
 
+    hr = renderer.CreateRootSignatureAndDescriptorTable();
+    renderer.m_IsInitialised &= SUCCEEDED(hr);
+    FAILED_RETURN(hr)
 
+    hr = renderer.FindAndCreateShaders();
+    renderer.m_IsInitialised &= SUCCEEDED(hr);
+    FAILED_RETURN(hr)
+
+    hr = renderer.CreateGraphicsPipelines();
+    renderer.m_IsInitialised &= SUCCEEDED(hr);
+    FAILED_RETURN(hr)
+   
     if (renderer.IsInitialised() == false)
     {
         Debug::LogSevere("Failed to initialise renderer.\n");
+    }
+
+    //Setting to closed as the first refernce to the command list will open it.
+    if (renderer.m_CommandList)
+    {
+        renderer.m_CommandList->Close();
     }
 
     return renderer.m_IsInitialised;
@@ -147,10 +174,13 @@ void Renderer::Shutdown(Renderer& renderer)
         Debug::LogWarning("Calling shutdown on a renderer object that doesn't exist.");
         return;
     }
-
+    
+    renderer.DestroyGraphicsPipelines();
+    renderer.DestroyLoadedShaders();
+    renderer.DestroyRootSignatureAndDescriptorTable();
     renderer.DestroyConstantBuffers();
     renderer.DestroyConstantBufferHeap();
-    renderer.DestroyInputAssembly();
+    renderer.DestroyInputLayout();
     renderer.DestroyDepthStencilBuffer();
     renderer.DestroyRenderTargetViews();
     renderer.DestroyDescriptorHeaps();
@@ -327,12 +357,6 @@ HRESULT Renderer::CreateCommandObjects()
     {
         Debug::LogFatal("Failed to create command list from ID3D12Device.\n");
         return result;
-    }
-
-    //Setting to closed as the first refernce to the command list will open it.
-    if (m_CommandList)
-    {
-        m_CommandList->Close();
     }
 
     return result;
@@ -652,50 +676,46 @@ HRESULT Renderer::FlushCommandQueue()
     return result;
 }
 
-HRESULT Renderer::CreateInputAssembly()
-{
-    //pg 206
-    return E_NOTIMPL;
-}
-
-void Renderer::DestroyInputAssembly()
-{
-}
-
 HRESULT Renderer::CreateConstantBuffers()
 {
-    CD3DX12_RESOURCE_DESC resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(ConstantBuffer) * MAX_NUM_ENTITIES);
+    CD3DX12_RESOURCE_DESC resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(ConstantBuffer));
     CD3DX12_HEAP_PROPERTIES heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
 
-    HRESULT result = m_Device->CreateCommittedResource(
-        &heapProperties,
-        D3D12_HEAP_FLAG_NONE,
-        &resourceDesc,
-        D3D12_RESOURCE_STATE_GENERIC_READ,
-        nullptr,
-        IID_PPV_ARGS(&m_ConstantBufferArray));
-
-    if (FAILED(result))
+    for (size_t i = 0; i < MAX_NUM_ENTITIES; i++)
     {
-        Debug::LogSevere("Failed during constant buffer array creation.\n");
-        return result;
-    }
+        HRESULT result = m_Device->CreateCommittedResource(
+            &heapProperties,
+            D3D12_HEAP_FLAG_NONE,
+            &resourceDesc,
+            D3D12_RESOURCE_STATE_GENERIC_READ,
+            nullptr,
+            IID_PPV_ARGS(&m_ConstantBufferArray[i]));
 
-    D3D12_GPU_VIRTUAL_ADDRESS bufferAddr = m_ConstantBufferArray->GetGPUVirtualAddress();
-    D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc{};
-    cbvDesc.BufferLocation = bufferAddr;
-    cbvDesc.SizeInBytes = sizeof(ConstantBuffer) * MAX_NUM_ENTITIES;
-    m_Device->CreateConstantBufferView(&cbvDesc, m_CBVHeap->GetCPUDescriptorHandleForHeapStart());
+        if (FAILED(result))
+        {
+            Debug::LogSevere("Failed during constant buffer array %i creation.\n", i);
+            return result;
+        }
+
+        D3D12_GPU_VIRTUAL_ADDRESS bufferAddr = m_ConstantBufferArray[i]->GetGPUVirtualAddress();
+        D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc{};
+        cbvDesc.BufferLocation = bufferAddr;
+        cbvDesc.SizeInBytes = sizeof(ConstantBuffer);
+        m_Device->CreateConstantBufferView(&cbvDesc, m_CBVHeap->GetCPUDescriptorHandleForHeapStart());
+    }
 
     return S_OK;
 }
 
 void Renderer::DestroyConstantBuffers()
 {
-    if (m_ConstantBufferArray != nullptr)
+    for (size_t i = 0; i < MAX_NUM_ENTITIES; i++)
     {
-        m_ConstantBufferArray->Release();
-        m_ConstantBufferArray = nullptr;
+        if (m_ConstantBufferArray[i] != nullptr)
+        {
+            m_ConstantBufferArray[i]->Release();
+            m_ConstantBufferArray[i] = nullptr;
+        }
     }
 }
 
@@ -719,6 +739,273 @@ void Renderer::DestroyConstantBufferHeap()
     }
 }
 
+HRESULT Renderer::CreateRootSignatureAndDescriptorTable()
+{
+    CD3DX12_ROOT_PARAMETER slotRootParameter[1]{};
+
+    //Create a descriptor table for cbv
+    CD3DX12_DESCRIPTOR_RANGE cbvTable{};
+    cbvTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
+
+    slotRootParameter->InitAsDescriptorTable(1, &cbvTable);
+
+    CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc(1, slotRootParameter, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
+    ID3DBlob* rootSigBlob = nullptr;
+    ID3DBlob* errorBlob = nullptr;
+
+    HRESULT result = D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &rootSigBlob, &errorBlob);
+
+    if (FAILED(result))
+    {
+        Debug::LogSevere("Failed to create serialised root signature.\n");
+        OutputDebugStringA(reinterpret_cast<const char*>(errorBlob->GetBufferPointer()));
+
+        if (errorBlob != nullptr)
+        {
+            errorBlob->Release();
+            errorBlob = nullptr;
+        }
+
+        return result;
+    }
+
+    if (errorBlob != nullptr)
+    {
+        errorBlob->Release();
+        errorBlob = nullptr;
+    }
+
+    result = m_Device->CreateRootSignature(0, rootSigBlob->GetBufferPointer(), rootSigBlob->GetBufferSize(), IID_PPV_ARGS(&m_RootSignature));
+
+    if (FAILED(result))
+    {
+        Debug::LogSevere("Failed to create root signature.\n");
+
+        if (rootSigBlob != nullptr)
+        {
+            rootSigBlob->Release();
+            rootSigBlob = nullptr;
+        }
+
+        return result;
+    }
+
+    if (rootSigBlob != nullptr)
+    {
+        rootSigBlob->Release();
+        rootSigBlob = nullptr;
+    }
+
+    m_CommandList->SetGraphicsRootSignature(m_RootSignature);
+    ID3D12DescriptorHeap* heaps[] = { m_CBVHeap };
+
+    m_CommandList->SetDescriptorHeaps(_countof(heaps), heaps);
+
+    CD3DX12_GPU_DESCRIPTOR_HANDLE cbv(m_CBVHeap->GetGPUDescriptorHandleForHeapStart());
+    cbv.Offset(0, m_CBVSRVDescriptorHeapSize);
+    m_CommandList->SetGraphicsRootDescriptorTable(0, cbv);
+
+    return S_OK;
+}
+
+void Renderer::DestroyRootSignatureAndDescriptorTable()
+{
+    if (m_RootSignature != nullptr)
+    {
+        m_RootSignature->Release();
+        m_RootSignature = nullptr;
+    }
+}
+
+HRESULT Renderer::ReadShaderData(const std::string& filename, ID3DBlob*& targetBlob)
+{
+    std::filesystem::path path = filename;
+
+    if (std::filesystem::exists(path) == false)
+    {
+        Debug::LogSevere("Failed to locate shader file '%s'\n", filename.c_str());
+        return E_INVALIDARG;
+    }
+
+    if (targetBlob != nullptr)
+    {
+        Debug::LogSevere("Trying to load shader into already loaded blob.\n");
+        return E_POINTER;
+    }
+
+    //Load file.
+    std::ifstream file(filename, std::ios::binary);
+    //Seek end
+    file.seekg(0, std::ios::end);
+    //Get size from current position
+    int size = file.tellg();
+    //Go back to the start for read.
+    file.seekg(0, std::ios::beg);
+
+    HRESULT result = D3DCreateBlob(size, &targetBlob);
+    if (FAILED(result))
+    {
+        Debug::LogSevere("Failed to create blob during shader object creation.\n");
+        return E_POINTER;
+    }
+
+    file.read((char*)targetBlob->GetBufferPointer(), size);
+    file.close();
+
+    return S_OK;
+}
+
+HRESULT Renderer::FindAndCreateShaders()
+{
+    HRESULT result = E_UNEXPECTED;
+
+    result = ReadShaderData("PS_Standard.cso", m_DefaultPixelShaderBlob);
+
+    if (FAILED(result))
+    {
+        //Error message displayed in function.
+        return result;
+    }
+
+    result = ReadShaderData("VS_Standard.cso", m_DefaultVertexShaderBlob);
+
+    if (FAILED(result))
+    {
+        //Error message displayed in function.
+        return result;
+    }
+
+    result = ReadShaderData("PS_ColourOnly.cso", m_ColourOnlyPixelShaderBlob);
+
+    if (FAILED(result))
+    {
+        //Error message displayed in function.
+        return result;
+    }
+
+    result = ReadShaderData("VS_ColourOnly.cso", m_ColourOnlyVertexShaderBlob);
+
+    if (FAILED(result))
+    {
+        //Error message displayed in function.
+        return result;
+    }
+
+    return result;
+}
+
+void Renderer::DestroyLoadedShaders()
+{
+    if (m_DefaultPixelShaderBlob != nullptr)
+    {
+        m_DefaultPixelShaderBlob->Release();
+        m_DefaultPixelShaderBlob = nullptr;
+    }
+    
+    if (m_DefaultVertexShaderBlob != nullptr)
+    {
+        m_DefaultVertexShaderBlob->Release();
+        m_DefaultVertexShaderBlob = nullptr;
+    }
+    
+    if (m_ColourOnlyPixelShaderBlob != nullptr)
+    {
+        m_ColourOnlyPixelShaderBlob->Release();
+        m_ColourOnlyPixelShaderBlob = nullptr;
+    }
+    
+    if (m_ColourOnlyVertexShaderBlob != nullptr)
+    {
+        m_ColourOnlyVertexShaderBlob->Release();
+        m_ColourOnlyVertexShaderBlob = nullptr;
+    }
+}
+
+HRESULT Renderer::CreateGraphicsPipelines()
+{
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC pipelineStateDesc{};
+    memset(&pipelineStateDesc, 0, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
+    pipelineStateDesc.pRootSignature = m_RootSignature;
+    pipelineStateDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+    pipelineStateDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+    pipelineStateDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+    pipelineStateDesc.SampleMask = UINT_MAX;
+    pipelineStateDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE::D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+    pipelineStateDesc.NodeMask = 0;
+    pipelineStateDesc.NumRenderTargets = 1;
+    pipelineStateDesc.RTVFormats[0] = m_BackbufferFormat;
+    pipelineStateDesc.DSVFormat = m_DepthStencilBufferFormat;
+    pipelineStateDesc.SampleDesc.Count = 1;
+    pipelineStateDesc.SampleDesc.Quality = 0;
+
+    HRESULT result = E_POINTER;
+    if (m_DefaultVertexShaderBlob != nullptr && m_DefaultPixelShaderBlob != nullptr)
+    {
+        pipelineStateDesc.InputLayout.NumElements = m_DefaultInputLayout.size();
+        pipelineStateDesc.InputLayout.pInputElementDescs = m_DefaultInputLayout.data();
+        pipelineStateDesc.VS.pShaderBytecode = m_DefaultVertexShaderBlob->GetBufferPointer();
+        pipelineStateDesc.VS.BytecodeLength = m_DefaultVertexShaderBlob->GetBufferSize();
+        pipelineStateDesc.PS.pShaderBytecode = m_DefaultPixelShaderBlob->GetBufferPointer();
+        pipelineStateDesc.PS.BytecodeLength = m_DefaultPixelShaderBlob->GetBufferSize();
+        result = m_Device->CreateGraphicsPipelineState(&pipelineStateDesc, IID_PPV_ARGS(&m_DefaultPipeline));
+    }
+
+    if (FAILED(result))
+    {
+        Debug::LogSevere("Failed to create default graphics pipeline state.\n");
+        return result;
+    }
+
+    result = E_POINTER;
+    if (m_ColourOnlyVertexShaderBlob != nullptr && m_ColourOnlyPixelShaderBlob != nullptr)
+    {
+        pipelineStateDesc.InputLayout.NumElements = m_ColourOnlyInputLayout.size();
+        pipelineStateDesc.InputLayout.pInputElementDescs = m_ColourOnlyInputLayout.data();
+        pipelineStateDesc.VS.pShaderBytecode = m_ColourOnlyVertexShaderBlob->GetBufferPointer();
+        pipelineStateDesc.VS.BytecodeLength = m_ColourOnlyVertexShaderBlob->GetBufferSize();
+        pipelineStateDesc.PS.pShaderBytecode = m_ColourOnlyPixelShaderBlob->GetBufferPointer();
+        pipelineStateDesc.PS.BytecodeLength = m_ColourOnlyPixelShaderBlob->GetBufferSize();
+        result = m_Device->CreateGraphicsPipelineState(&pipelineStateDesc, IID_PPV_ARGS(&m_ColourOnlyPipeline));
+    }
+
+    if (FAILED(result))
+    {
+        Debug::LogSevere("Failed to create colour only graphics pipeline state.\n");
+        return result;
+    }
+
+    return result;
+}
+
+void Renderer::DestroyGraphicsPipelines()
+{
+    if (m_ColourOnlyPipeline != nullptr)
+    {
+        m_ColourOnlyPipeline->Release();
+        m_ColourOnlyPipeline = nullptr;
+    }
+
+    if (m_DefaultPipeline != nullptr)
+    {
+        m_DefaultPipeline->Release();
+        m_DefaultPipeline = nullptr;
+    }
+}
+
+HRESULT Renderer::CreateInputLayout()
+{
+    Vertex::GetElementDescription(m_DefaultInputLayout);
+    ColourOnlyVertex::GetElementDescription(m_ColourOnlyInputLayout);
+    return S_OK;
+}
+
+void Renderer::DestroyInputLayout()
+{
+    m_DefaultInputLayout.clear();
+    m_ColourOnlyInputLayout.clear();
+}
+
 const DirectX::XMFLOAT4& Renderer::GetClearColour() const
 {
     return m_ClearColour;
@@ -733,8 +1020,12 @@ HRESULT Renderer::UpdateConstantBuffer(const int& entityIndex, ConstantBuffer& c
 {
     CUSTOM_ASSERT(m_IsInitialised);
 
+    CD3DX12_GPU_DESCRIPTOR_HANDLE cbv(m_CBVHeap->GetGPUDescriptorHandleForHeapStart());
+    cbv.Offset(entityIndex, m_CBVSRVDescriptorHeapSize);
+    m_CommandList->SetGraphicsRootDescriptorTable(entityIndex, cbv);
+
     BYTE* mappedData = nullptr;
-    HRESULT result = m_ConstantBufferArray->Map(0, nullptr, reinterpret_cast<void**>(&mappedData));
+    HRESULT result = m_ConstantBufferArray[entityIndex]->Map(0, nullptr, reinterpret_cast<void**>(&mappedData));
     if (FAILED(result))
     {
         Debug::LogSevere("Failed to map constant buffer address for update.\n");
@@ -743,9 +1034,9 @@ HRESULT Renderer::UpdateConstantBuffer(const int& entityIndex, ConstantBuffer& c
 
     memcpy(&mappedData, &cb, sizeof(ConstantBuffer));
 
-    if (m_ConstantBufferArray != nullptr)
+    if (m_ConstantBufferArray[entityIndex] != nullptr)
     {
-        m_ConstantBufferArray->Unmap(0, nullptr);
+        m_ConstantBufferArray[entityIndex]->Unmap(0, nullptr);
     }
 
     mappedData = nullptr;
@@ -763,7 +1054,7 @@ void Renderer::ClearFrame()
         return;
     }
 
-    if (FAILED(m_CommandList->Reset(m_CommandAllocator, nullptr)))
+    if (FAILED(m_CommandList->Reset(m_CommandAllocator, m_DefaultPipeline)))
     {
         Debug::LogSevere("Failed to reset command allocator.\n");
         return;
@@ -775,16 +1066,24 @@ void Renderer::ClearFrame()
     D3D12_CPU_DESCRIPTOR_HANDLE backBufferHandle = GetCurrentBackbufferView();
     D3D12_CPU_DESCRIPTOR_HANDLE dsvBufferHandle = GetDepthStencilBufferView();
 
-    D3D12_RESOURCE_BARRIER transition = CD3DX12_RESOURCE_BARRIER::Transition(m_SwapchainBuffers[m_CurrentBackbufferIndex], D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    D3D12_RESOURCE_BARRIER transition = CD3DX12_RESOURCE_BARRIER::Transition(m_DepthStencilBuffer, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_DEPTH_WRITE);
     m_CommandList->ResourceBarrier(1, &transition);
 
     float Colour[4] = { m_ClearColour.x, m_ClearColour.y, m_ClearColour.z, m_ClearColour.w };
     m_CommandList->ClearDepthStencilView(dsvBufferHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+
+    transition = CD3DX12_RESOURCE_BARRIER::Transition(m_SwapchainBuffers[m_CurrentBackbufferIndex], D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    m_CommandList->ResourceBarrier(1, &transition);
+
     m_CommandList->ClearRenderTargetView(backBufferHandle, Colour, 0, nullptr);
     m_CommandList->OMSetRenderTargets(1, &backBufferHandle, true, &dsvBufferHandle);
 
     ID3D12DescriptorHeap* heaps[] = { m_CBVHeap };
+    m_CommandList->SetGraphicsRootSignature(m_RootSignature);
     m_CommandList->SetDescriptorHeaps(_countof(heaps), heaps);
+    CD3DX12_GPU_DESCRIPTOR_HANDLE cbv(m_CBVHeap->GetGPUDescriptorHandleForHeapStart());
+    cbv.Offset(0, m_CBVSRVDescriptorHeapSize);
+    m_CommandList->SetGraphicsRootDescriptorTable(0, cbv);
 }
 
 void Renderer::PresentFrame()
@@ -792,6 +1091,9 @@ void Renderer::PresentFrame()
     CUSTOM_ASSERT(m_IsInitialised);
 
     D3D12_RESOURCE_BARRIER transition = CD3DX12_RESOURCE_BARRIER::Transition(m_SwapchainBuffers[m_CurrentBackbufferIndex], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+    m_CommandList->ResourceBarrier(1, &transition);
+
+    transition = CD3DX12_RESOURCE_BARRIER::Transition(m_DepthStencilBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PRESENT);
     m_CommandList->ResourceBarrier(1, &transition);
 
     if (FAILED(m_CommandList->Close()))

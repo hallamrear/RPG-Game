@@ -197,4 +197,13 @@
       <Filter>Resource Files</Filter>
     </ResourceCompile>
   </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Graphics\Shaders\PS_Standard.hlsl" />
+    <FxCompile Include="Graphics\Shaders\VS_Standard.hlsl" />
+    <FxCompile Include="Graphics\Shaders\VS_ColourOnly.hlsl" />
+    <FxCompile Include="Graphics\Shaders\PS_ColourOnly.hlsl" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Graphics\Shaders\Structures.hlsli" />
+  </ItemGroup>
 </Project>
