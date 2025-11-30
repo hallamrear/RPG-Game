@@ -1,22 +1,22 @@
 #include "pch.h"
 #include "TextureLoader.h"
 #include <Graphics/Texturing/Texture.h>
+#include <External/stb_image.h>
+#include <fstream>
+#include <iostream>
 #include <Graphics/DX12Includes.h>
 #include <Graphics/Renderer.h>
 #include <System/Debug.h>
 
-D3D12_SHADER_RESOURCE_VIEW_DESC  TextureLoader::GetTexture2DResourceViewDescription()
+std::unordered_map<std::string, ID3D12Resource*> TextureLoader::m_TextureMap = std::unordered_map<std::string, ID3D12Resource*>();
+
+bool TextureLoader::IsTextureLoaded(const std::string& filename)
 {
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION::D3D12_SRV_DIMENSION_TEXTURE2D;
-	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
-	
-	return srvDesc;
+	auto itr = m_TextureMap.find(filename);
+	return itr != m_TextureMap.end();
 }
 
-bool TextureLoader::LoadFromData(Renderer& renderer, Texture& texture, const void* data, const size_t& bytes, const int& width, const int& height)
+bool TextureLoader::LoadFromData(Renderer& renderer, Texture& texture, const void* data, const size_t& bytes)
 {
 	if (texture.IsLoaded())
 	{
@@ -25,33 +25,183 @@ bool TextureLoader::LoadFromData(Renderer& renderer, Texture& texture, const voi
 	}
 
 	ID3D12Device* device = renderer.GetDevice();
+	ID3D12GraphicsCommandList* commandList = renderer.GetCommandList();
 
-	if (device == nullptr)
+	if (device == nullptr || commandList == nullptr)
 	{
-		Debug::LogSevere("Returned an invalid device object during texture creation.\n");
+		Debug::LogSevere("Returned an invalid renderer object during texture creation.\n");
 		return false;
 	}
 
-	const uint32_t tempPixel = 0xFFFFFFFF;
-	D3D12_SUBRESOURCE_DATA textureData = {};
-	textureData.pData = &tempPixel;
-	//textureData.RowPitch = textureDesc.Width * 4;
-	//textureData.SlicePitch = textureDesc.Width * 4;
+	int width = -1;
+	int height = -1;
+	int channels = -1;
+
+	unsigned char* pixels = stbi_load_from_memory((const stbi_uc*)data, bytes, &width, &height, &channels, 4);
+
+	if (pixels == nullptr || width == -1 || height == -1 || channels == -1)
+	{
+		Debug::LogSevere("Failed to load texture from data.\n");
+		return false;
+	}
+
+	D3D12_HEAP_PROPERTIES defaultHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE::D3D12_HEAP_TYPE_DEFAULT);
+	CD3DX12_RESOURCE_DESC resourceDesc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM, width, height);
+	HRESULT result = device->CreateCommittedResource(&defaultHeap, D3D12_HEAP_FLAG_NONE, &resourceDesc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&texture.m_Resource));
+
+	if (FAILED(result))
+	{
+		Debug::LogSevere("Failed to create commited resource for texture.\n");
+		return SUCCEEDED(result);
+	}
+
+	{
+		THIS SECTION NEEDS TO BE REWRITTEN AND ALSO COMMANDLIST NEEDS OPENING FOR IT.
+		ID3D12Resource* textureUploadHeap = nullptr;
+		D3D12_HEAP_PROPERTIES cpuUploadHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE::D3D12_HEAP_TYPE_UPLOAD);
+		UINT64 uploadSize = GetRequiredIntermediateSize(texture.m_Resource, 0, 1);
+
+		auto gpuUploadBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(uploadSize);
+
+		result = device->CreateCommittedResource(
+			&cpuUploadHeap,
+			D3D12_HEAP_FLAG_NONE,
+			&gpuUploadBufferDesc,
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr,
+			IID_PPV_ARGS(&textureUploadHeap));
+
+		if (FAILED(result))
+		{
+			Debug::LogSevere("Failed to create commited BPU resources (upload heap) for texture.\n");
+			return SUCCEEDED(result);
+		}
+
+
+
+		D3D12_SUBRESOURCE_DATA textureData = {};
+		textureData.pData = pixels;
+		textureData.RowPitch = width * (4 * sizeof(char));
+		textureData.SlicePitch = textureData.RowPitch * height;
+
+		UpdateSubresources(commandList, texture.m_Resource, textureUploadHeap, 0, 0, 1, &textureData);
+
+		{
+			////Mapping memory
+			//BYTE* mappedData = nullptr;
+			//result = texture.m_Resource->Map(0, nullptr, reinterpret_cast<void**>(&mappedData));
+			//if (FAILED(result))
+			//{
+			//	Debug::LogSevere("Failed to map texture resources address for data copy.\n");
+			//	return SUCCEEDED(result);
+			//}
+
+			//memcpy(&mappedData, &pixels, bytes);
+
+			//if (texture.m_Resource != nullptr)
+			//{
+			//	texture.m_Resource->Unmap(0, nullptr);
+			//}
+
+			//mappedData = nullptr; 
+		}
+
+		CD3DX12_RESOURCE_BARRIER copyToSRVTransition = CD3DX12_RESOURCE_BARRIER::Transition(texture.m_Resource, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		commandList->ResourceBarrier(1, &copyToSRVTransition);
+	}
+	 
+	CD3DX12_SHADER_RESOURCE_VIEW_DESC srvDesc = CD3DX12_SHADER_RESOURCE_VIEW_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM);
+	device->CreateShaderResourceView(texture.m_Resource, &srvDesc, renderer.GetCBVSRVDescriptorHeapStart());
+
+	if (texture.m_Resource != nullptr)
+	{
+		texture.m_Height = height;
+		texture.m_Width = width;
+		texture.m_IsLoaded = true;
+	}
+
+	return texture.m_IsLoaded;
+}
+
+bool TextureLoader::LoadExistingResourceFromMap(Texture& texture, const std::string& path)
+{
+	std::unordered_map<std::string, ID3D12Resource*>::iterator itr = m_TextureMap.find(path);
+
+	if (itr == m_TextureMap.end())
+	{
+		Debug::LogSevere("Texture map thinks it exists but searching does not. This is bad.");
+		return false;
+	}
+
+	ID3D12Resource* resource = nullptr;
+	HRESULT hr = itr->second->QueryInterface(&resource);
+
+	if (SUCCEEDED(hr))
+	{
+		D3D12_RESOURCE_DESC desc = resource->GetDesc();
+		texture.m_Width = desc.Width;
+		texture.m_Height = desc.Height;
+		texture.m_Resource = itr->second;
+		texture.m_IsLoaded = true;
+		return true;
+	}
 	
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = GetTexture2DResourceViewDescription();
-
-	//device->CreateShaderResourceView(texture.m_Resource, &srvDesc, destDescriptor);
-
-	return true;
+	return false;
 }
 
 bool TextureLoader::LoadFromFile(Renderer& renderer, Texture& texture, const std::string& path)
 {
+	if (texture.IsLoaded())
+	{
+		Debug::LogSevere("Creating an object in an already initialised texture.\n");
+		return false;
+	}
 
+	if (IsTextureLoaded(path))
+	{
+		return LoadExistingResourceFromMap(texture, path);
+	}
 
+	std::fstream imageFile(path, std::ios::in | std::ios::binary | std::ios::ate);
 
+	if (!imageFile.good())
+	{
+		Debug::LogSevere("Failed to load texture from file %s.\n", path);
+		return false;
+	}
 
-	return false;
+	if (!imageFile.is_open())
+	{
+		Debug::LogSevere("Failed to load texture from file %s.\n", path);
+		return false;
+	}
+
+	int bufferSize = (int)imageFile.tellg();
+	imageFile.seekg(0, std::ios::beg);
+
+	char* buffer = new char[bufferSize];
+	imageFile.read(buffer, bufferSize);
+	imageFile.close();
+	
+	if (buffer == nullptr)
+	{
+		Debug::LogSevere("Failed to load texture from file %s.\n", path);
+		delete[] buffer;
+		buffer = nullptr;
+		return false;
+	}
+
+	bool imageLoaded = LoadFromData(renderer, texture, buffer, bufferSize);
+
+	if (imageLoaded == false)
+	{
+		Debug::LogSevere("Failed to load texture data from file %s.\n", path);
+	}
+
+	delete[] buffer;
+	buffer = nullptr;
+	
+	return imageLoaded;
 }
 
 void TextureLoader::Destroy(Texture& texture)

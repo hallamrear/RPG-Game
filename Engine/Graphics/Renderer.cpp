@@ -41,6 +41,13 @@ Renderer::Renderer()
     m_Viewport = { 0.0f, 0.0f, 0.0f, 0.0f };
     m_ScissorRect = {};
     m_DepthStencilBuffer = nullptr;
+    m_ColourOnlyPipeline = nullptr;
+    m_ColourOnlyVertexShaderBlob = nullptr;
+    m_ColourOnlyPixelShaderBlob = nullptr;
+    m_DefaultPixelShaderBlob = nullptr;
+    m_DefaultVertexShaderBlob = nullptr;
+    m_DefaultPipeline = nullptr;
+    m_RootSignature = nullptr;
 
     for (size_t i = 0; i < MAX_NUM_ENTITIES; i++)
     {
@@ -56,6 +63,18 @@ Renderer::~Renderer()
 const bool& Renderer::IsInitialised()
 {
     return m_IsInitialised;
+}
+
+ID3D12GraphicsCommandList* Renderer::GetCommandList()
+{
+    CUSTOM_ASSERT(m_IsInitialised);
+    return m_CommandList;
+}
+
+const ID3D12GraphicsCommandList* Renderer::GetCommandList() const
+{
+    CUSTOM_ASSERT(m_IsInitialised);
+    return m_CommandList;
 }
 
 const ID3D12Device* Renderer::GetDevice() const
@@ -156,12 +175,6 @@ bool Renderer::Initialise(Renderer& renderer, const HWND& windowHandle)
     if (renderer.IsInitialised() == false)
     {
         Debug::LogSevere("Failed to initialise renderer.\n");
-    }
-
-    //Setting to closed as the first refernce to the command list will open it.
-    if (renderer.m_CommandList)
-    {
-        renderer.m_CommandList->Close();
     }
 
     return renderer.m_IsInitialised;
@@ -991,6 +1004,12 @@ void Renderer::DestroyGraphicsPipelines()
         m_DefaultPipeline->Release();
         m_DefaultPipeline = nullptr;
     }
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE Renderer::GetCBVSRVDescriptorHeapStart() const
+{
+    CUSTOM_ASSERT((m_CBVHeap != nullptr));
+    return m_CBVHeap->GetCPUDescriptorHandleForHeapStart();
 }
 
 HRESULT Renderer::CreateInputLayout()

@@ -105,8 +105,13 @@ public:
 
 	const bool& IsInitialised();
 
+	ID3D12GraphicsCommandList* GetCommandList();
+	const ID3D12GraphicsCommandList* GetCommandList() const;
+
 	const ID3D12Device* GetDevice() const;
 	ID3D12Device* GetDevice();
+
+	struct D3D12_CPU_DESCRIPTOR_HANDLE GetCBVSRVDescriptorHeapStart() const;
 
 	HRESULT CreateResource(ID3D12Resource& resource, const D3D12_RESOURCE_DESC& resDesc);
 

@@ -50,6 +50,13 @@ bool GameInstance::Initialise(const HWND& windowHandle)
 
 	m_ConstantBuffer = new ConstantBuffer();
 
+
+	//Setting to closed as the first refernce to the command list will open it.
+	if (m_Renderer.GetCommandList())
+	{
+		m_Renderer.GetCommandList()->Close();
+	}
+
 	SetIsRunning(m_IsInitalised);
 	return m_IsInitalised;
 }
@@ -97,8 +104,6 @@ void GameInstance::Render()
 		return;
 
 	m_Renderer.ClearFrame();
-
-
 
 	m_Renderer.PresentFrame();
 }

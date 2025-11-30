@@ -12,6 +12,7 @@ class GeometryLoader
 {
 private:
 	static bool CreateModelFromGLTF(Renderer& renderer, Model& model, tinygltf::Model& gltfModel);
+	static bool LoadGeometryFromGLTF(Renderer& renderer, Model& model, tinygltf::Model& gltfModel);
 	static bool LoadTexturesFromGLTF(Renderer& renderer, Model& model, tinygltf::Model& gltfModel);
 
 public:
