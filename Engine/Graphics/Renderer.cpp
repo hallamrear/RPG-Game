@@ -60,7 +60,7 @@ Renderer::~Renderer()
     CUSTOM_ASSERT(IsInitialised() == false);
 }
 
-const bool& Renderer::IsInitialised()
+const bool& Renderer::IsInitialised() const
 {
     return m_IsInitialised;
 }
@@ -87,11 +87,6 @@ ID3D12Device* Renderer::GetDevice()
 {
     CUSTOM_ASSERT(m_IsInitialised);
     return m_Device;
-}
-
-HRESULT Renderer::CreateResource(ID3D12Resource& resource, const D3D12_RESOURCE_DESC& resDesc)
-{
-    return E_NOTIMPL;
 }
 
 bool Renderer::Initialise(Renderer& renderer, const HWND& windowHandle)
@@ -313,7 +308,7 @@ HRESULT Renderer::DetermineMultisamplingDetails()
     if (m_Device == nullptr)
         return E_POINTER;
 
-    D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS multisampleQualityLevels;
+    D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS multisampleQualityLevels{};
     multisampleQualityLevels.Format = m_BackbufferFormat;
     multisampleQualityLevels.SampleCount = 4;
     multisampleQualityLevels.Flags = D3D12_MULTISAMPLE_QUALITY_LEVEL_FLAGS::D3D12_MULTISAMPLE_QUALITY_LEVELS_FLAG_NONE;
@@ -592,7 +587,7 @@ HRESULT Renderer::CreateDepthStencilBuffer()
     depthStencilDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
     depthStencilDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 
-    D3D12_CLEAR_VALUE clearValue;
+    D3D12_CLEAR_VALUE clearValue{};
     clearValue.Color[0] = 1.0f;
     clearValue.Color[1] = 1.0f;
     clearValue.Color[2] = 1.0f;
@@ -759,8 +754,14 @@ HRESULT Renderer::CreateRootSignatureAndDescriptorTable()
     //Create a descriptor table for cbv
     CD3DX12_DESCRIPTOR_RANGE cbvTable{};
     cbvTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
+    CD3DX12_DESCRIPTOR_RANGE srvTable{};
+    srvTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 5, 0);
 
-    slotRootParameter->InitAsDescriptorTable(1, &cbvTable);
+    CD3DX12_DESCRIPTOR_RANGE ranges[] =
+    {
+        cbvTable, srvTable
+    };
+    slotRootParameter->InitAsDescriptorTable(_countof(ranges), ranges);
 
     CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc(1, slotRootParameter, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
@@ -1012,6 +1013,65 @@ D3D12_CPU_DESCRIPTOR_HANDLE Renderer::GetCBVSRVDescriptorHeapStart() const
     return m_CBVHeap->GetCPUDescriptorHandleForHeapStart();
 }
 
+HRESULT Renderer::CreateDefaultBuffer(ID3D12Resource*& defaultBuffer, ID3D12Resource*& gpuUploadBuffer, const void* data, const size_t& sizeBytes)
+{
+    CUSTOM_ASSERT((defaultBuffer == nullptr));
+    CUSTOM_ASSERT((gpuUploadBuffer == nullptr));
+    CUSTOM_ASSERT((data != nullptr));
+    CUSTOM_ASSERT(sizeBytes > 0);
+
+    CD3DX12_HEAP_PROPERTIES defaultHeapProperties = CD3DX12_HEAP_PROPERTIES::CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+    CD3DX12_RESOURCE_DESC defaultBufferResourceDesc = CD3DX12_RESOURCE_DESC::Buffer((UINT64)sizeBytes);
+
+    //Creating Default Buffer
+    HRESULT result = m_Device->CreateCommittedResource(
+        &defaultHeapProperties, D3D12_HEAP_FLAG_NONE,
+        &defaultBufferResourceDesc, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COMMON,
+        nullptr,
+        IID_PPV_ARGS(&defaultBuffer));
+
+    if (FAILED(result))
+    {
+        Debug::LogSevere("Failed to create commited resource for default buffer.\n");
+        return result;
+    }
+
+    //Creating GPU upload buffer.
+    CD3DX12_HEAP_PROPERTIES uploadHeapProperties = CD3DX12_HEAP_PROPERTIES::CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+
+    result = m_Device->CreateCommittedResource(
+        &uploadHeapProperties, D3D12_HEAP_FLAG_NONE,
+        &defaultBufferResourceDesc, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(&gpuUploadBuffer));
+
+    if (FAILED(result))
+    {
+        Debug::LogSevere("Failed to create commited resource for default buffer's GPU upload buffer.\n");
+        return result;
+    }
+
+    //Describe data for copy into buffer.
+    D3D12_SUBRESOURCE_DATA subresourceData{};
+    subresourceData.pData = data;
+    subresourceData.RowPitch = sizeBytes;
+    subresourceData.SlicePitch = sizeBytes;
+
+    //Scheduling copy to the default buffer.
+    //Copies CPU memory to immediate upload heap, then upload heap is copied into buffer by gpu.
+    CD3DX12_RESOURCE_BARRIER toCopyTransition = CD3DX12_RESOURCE_BARRIER::Transition(defaultBuffer, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COPY_DEST);
+    m_CommandList->ResourceBarrier(1, &toCopyTransition);
+
+    UpdateSubresources(m_CommandList,
+        defaultBuffer, gpuUploadBuffer, 0, 
+        0, 1, &subresourceData);
+
+    CD3DX12_RESOURCE_BARRIER toReadTransition = CD3DX12_RESOURCE_BARRIER::Transition(defaultBuffer, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_GENERIC_READ);
+    m_CommandList->ResourceBarrier(1, &toReadTransition);
+
+    return S_OK;
+}
+
 HRESULT Renderer::CreateInputLayout()
 {
     Vertex::GetElementDescription(m_DefaultInputLayout);
@@ -1103,6 +1163,8 @@ void Renderer::ClearFrame()
     CD3DX12_GPU_DESCRIPTOR_HANDLE cbv(m_CBVHeap->GetGPUDescriptorHandleForHeapStart());
     cbv.Offset(0, m_CBVSRVDescriptorHeapSize);
     m_CommandList->SetGraphicsRootDescriptorTable(0, cbv);
+
+    m_CommandList->SetPipelineState(m_ColourOnlyPipeline);
 }
 
 void Renderer::PresentFrame()

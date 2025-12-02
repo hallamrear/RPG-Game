@@ -1,7 +1,8 @@
 #pragma once
+#include "Mesh.h"
 
-class Mesh;
 class Texture;
+class Renderer;
 
 class Model
 {
@@ -12,10 +13,12 @@ private:
 	std::vector<Texture*> m_Textures;
 
 protected:
+	Mesh* CreateNewMesh();
 
 public:
 	Model();
 	~Model();
 
+	void TestRender(Renderer& renderer);
 };
 

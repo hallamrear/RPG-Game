@@ -103,7 +103,7 @@ public:
 	Renderer();
 	~Renderer();
 
-	const bool& IsInitialised();
+	const bool& IsInitialised() const;
 
 	ID3D12GraphicsCommandList* GetCommandList();
 	const ID3D12GraphicsCommandList* GetCommandList() const;
@@ -113,7 +113,7 @@ public:
 
 	struct D3D12_CPU_DESCRIPTOR_HANDLE GetCBVSRVDescriptorHeapStart() const;
 
-	HRESULT CreateResource(ID3D12Resource& resource, const D3D12_RESOURCE_DESC& resDesc);
+	HRESULT CreateDefaultBuffer(ID3D12Resource*& defaultBuffer, ID3D12Resource*& gpuUploadBuffer, const void* data, const size_t& sizeBytes);
 
 	const DirectX::XMFLOAT4& GetClearColour() const;
 	void SetClearColour(const DirectX::XMFLOAT4& newColour);

@@ -1,9 +1,7 @@
 #include "pch.h"
 #include "GeometryLoader.h"
 #include <System/Debug.h>
-
 #include <System/FileLoadingIncludes.h>
-
 #include <System/TextureLoader.h>
 #include <Graphics/Texturing/Texture.h>
 #include <Graphics/Geometry/Mesh.h>
@@ -17,13 +15,17 @@ bool GeometryLoader::CreateModelFromGLTF(Renderer& renderer, Model& model, tinyg
     loadedOk &= LoadGeometryFromGLTF(renderer, model, gltfModel);
     loadedOk &= LoadTexturesFromGLTF(renderer, model, gltfModel);
 
-    return false;
+    return loadedOk;
 }
 
 #include <Graphics/ColourOnlyVertex.h>
 
 bool GeometryLoader::LoadGeometryFromGLTF(Renderer& renderer, Model& model, tinygltf::Model& gltfModel)
 {
+    ID3D12Resource* vbUploader = nullptr;
+    ID3D12Resource* vertexBuffer = nullptr;
+    ID3D12Resource* ibUploader = nullptr;
+    ID3D12Resource* indexBuffer = nullptr;
 
     ColourOnlyVertex vertices[] =
     {
@@ -38,6 +40,27 @@ bool GeometryLoader::LoadGeometryFromGLTF(Renderer& renderer, Model& model, tiny
     };
 
     size_t vbSize = sizeof(ColourOnlyVertex) * 8;
+
+    HRESULT result = renderer.CreateDefaultBuffer(vertexBuffer, vbUploader, (const void*)vertices, vbSize);
+
+    if (FAILED(result) || vbUploader == nullptr)
+    {
+        Debug::LogSevere("Failed to create vertex buffer for gltf model.\n");
+
+        if (vertexBuffer != nullptr)
+        {
+            vertexBuffer->Release();
+            vertexBuffer = nullptr;
+        }
+
+        if (vbUploader != nullptr)
+        {
+            vbUploader->Release();
+            vbUploader = nullptr;
+        }
+
+        return false;
+    }
 
     std::uint16_t indices[] =
     {
@@ -62,9 +85,62 @@ bool GeometryLoader::LoadGeometryFromGLTF(Renderer& renderer, Model& model, tiny
 
     size_t ibSize = sizeof(uint16_t) * 36;
 
-    //pg 257
-    //createblob(ibBlob)
-    //copymem(ibblob->indexbufferCPU)
+    result = renderer.CreateDefaultBuffer(indexBuffer, ibUploader, (const void*)indices, ibSize);
+
+    if (FAILED(result) || ibUploader == nullptr)
+    {
+        Debug::LogSevere("Failed to create vertex buffer for gltf model.\n");
+
+        if (indexBuffer != nullptr)
+        {
+            indexBuffer->Release();
+            indexBuffer = nullptr;
+        }
+
+        if (ibUploader != nullptr)
+        {
+            ibUploader->Release();
+            ibUploader = nullptr;
+        }
+
+        return false;
+    }
+    
+    D3D12_VERTEX_BUFFER_VIEW vbv{};
+    vbv.BufferLocation = vertexBuffer->GetGPUVirtualAddress();
+    vbv.SizeInBytes = vbSize;
+    vbv.StrideInBytes = sizeof(ColourOnlyVertex);
+
+    D3D12_INDEX_BUFFER_VIEW ibv{};
+    ibv.BufferLocation = indexBuffer->GetGPUVirtualAddress();
+    ibv.Format = DXGI_FORMAT::DXGI_FORMAT_R16_UINT;
+    ibv.SizeInBytes = ibSize;
+
+    Mesh* mesh = model.CreateNewMesh();
+    mesh->m_VertexBuffer = vertexBuffer;
+    mesh->m_VertexBufferView = vbv;
+    mesh->m_IndexBuffer = indexBuffer;
+    mesh->m_IndexBufferView = ibv;
+
+    renderer.GetCommandList()->IASetVertexBuffers(0, 1, &mesh->GetVertexBufferView());
+    renderer.GetCommandList()->IASetIndexBuffer(&mesh->GetIndexBufferView());
+    renderer.GetCommandList()->IASetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY::D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+
+
+    FIGURE OUT HOW TO PROPERLY FENCE THE UPLOADERS.
+
+    if (vbUploader != nullptr)
+    {
+        vbUploader->Release();
+        vbUploader = nullptr;
+    }
+
+    if (ibUploader != nullptr)
+    {
+        ibUploader->Release();
+        ibUploader = nullptr;
+    }
 
     return true;
 }

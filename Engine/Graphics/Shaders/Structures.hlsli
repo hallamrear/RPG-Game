@@ -7,6 +7,8 @@ cbuffer PerObjectBuffer : register(b0)
     float4x4 Padding;
 };
 
+Texture2D DiffuseTexture : register(t0);
+
 struct VS_STANDARD_VERTEX_INPUT
 {
     float3 Position : POSITION;

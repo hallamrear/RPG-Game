@@ -56,12 +56,11 @@ bool TextureLoader::LoadFromData(Renderer& renderer, Texture& texture, const voi
 	}
 
 	{
-		THIS SECTION NEEDS TO BE REWRITTEN AND ALSO COMMANDLIST NEEDS OPENING FOR IT.
 		ID3D12Resource* textureUploadHeap = nullptr;
 		D3D12_HEAP_PROPERTIES cpuUploadHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE::D3D12_HEAP_TYPE_UPLOAD);
 		UINT64 uploadSize = GetRequiredIntermediateSize(texture.m_Resource, 0, 1);
 
-		auto gpuUploadBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(uploadSize);
+		CD3DX12_RESOURCE_DESC gpuUploadBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(uploadSize);
 
 		result = device->CreateCommittedResource(
 			&cpuUploadHeap,
@@ -76,7 +75,6 @@ bool TextureLoader::LoadFromData(Renderer& renderer, Texture& texture, const voi
 			Debug::LogSevere("Failed to create commited BPU resources (upload heap) for texture.\n");
 			return SUCCEEDED(result);
 		}
-
 
 
 		D3D12_SUBRESOURCE_DATA textureData = {};
