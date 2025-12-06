@@ -51,6 +51,7 @@ Renderer::Renderer()
 
     for (size_t i = 0; i < MAX_NUM_ENTITIES; i++)
     {
+        m_ConstantBufferGPUUploaderArray[i] = { nullptr };
         m_ConstantBufferArray[i] = { nullptr };
     }
 }
@@ -63,6 +64,23 @@ Renderer::~Renderer()
 const bool& Renderer::IsInitialised() const
 {
     return m_IsInitialised;
+}
+
+ID3D12CommandQueue* Renderer::GetCommandQueue()
+{
+    CUSTOM_ASSERT(m_IsInitialised);
+    return m_CommandQueue;
+}
+
+const ID3D12CommandQueue* Renderer::GetCommandQueue() const
+{
+    CUSTOM_ASSERT(m_IsInitialised);
+    return m_CommandQueue;
+}
+
+HRESULT Renderer::ResetCommandList()
+{
+    return m_CommandList->Reset(m_CommandAllocator, m_DefaultPipeline);
 }
 
 ID3D12GraphicsCommandList* Renderer::GetCommandList()
@@ -688,16 +706,14 @@ HRESULT Renderer::CreateConstantBuffers()
 {
     CD3DX12_RESOURCE_DESC resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(ConstantBuffer));
     CD3DX12_HEAP_PROPERTIES heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+    
+    ConstantBuffer empty = {};
+
+    HRESULT result = E_FAIL;
 
     for (size_t i = 0; i < MAX_NUM_ENTITIES; i++)
     {
-        HRESULT result = m_Device->CreateCommittedResource(
-            &heapProperties,
-            D3D12_HEAP_FLAG_NONE,
-            &resourceDesc,
-            D3D12_RESOURCE_STATE_GENERIC_READ,
-            nullptr,
-            IID_PPV_ARGS(&m_ConstantBufferArray[i]));
+        result = CreateDefaultBuffer(m_ConstantBufferArray[i], m_ConstantBufferGPUUploaderArray[i], &empty, sizeof(ConstantBuffer));
 
         if (FAILED(result))
         {
@@ -705,7 +721,17 @@ HRESULT Renderer::CreateConstantBuffers()
             return result;
         }
 
-        D3D12_GPU_VIRTUAL_ADDRESS bufferAddr = m_ConstantBufferArray[i]->GetGPUVirtualAddress();
+        if (m_ConstantBufferArray[i])
+        {
+            m_ConstantBufferArray[i]->SetName(L"Constant Buffer (CPU)");
+        }
+
+        if (m_ConstantBufferGPUUploaderArray[i])
+        {
+            m_ConstantBufferGPUUploaderArray[i]->SetName(L"Constant Buffer (GPU)");
+        }
+
+        D3D12_GPU_VIRTUAL_ADDRESS bufferAddr = m_ConstantBufferGPUUploaderArray[i]->GetGPUVirtualAddress();
         D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc{};
         cbvDesc.BufferLocation = bufferAddr;
         cbvDesc.SizeInBytes = sizeof(ConstantBuffer);
@@ -719,6 +745,12 @@ void Renderer::DestroyConstantBuffers()
 {
     for (size_t i = 0; i < MAX_NUM_ENTITIES; i++)
     {
+        if (m_ConstantBufferGPUUploaderArray[i] != nullptr)
+        {
+            m_ConstantBufferGPUUploaderArray[i]->Release();
+            m_ConstantBufferGPUUploaderArray[i] = nullptr;
+        }
+
         if (m_ConstantBufferArray[i] != nullptr)
         {
             m_ConstantBufferArray[i]->Release();
@@ -954,7 +986,7 @@ HRESULT Renderer::CreateGraphicsPipelines()
     pipelineStateDesc.SampleDesc.Quality = 0;
 
     HRESULT result = E_POINTER;
-    if (m_DefaultVertexShaderBlob != nullptr && m_DefaultPixelShaderBlob != nullptr)
+    /*if (m_DefaultVertexShaderBlob != nullptr && m_DefaultPixelShaderBlob != nullptr)
     {
         pipelineStateDesc.InputLayout.NumElements = m_DefaultInputLayout.size();
         pipelineStateDesc.InputLayout.pInputElementDescs = m_DefaultInputLayout.data();
@@ -969,7 +1001,7 @@ HRESULT Renderer::CreateGraphicsPipelines()
     {
         Debug::LogSevere("Failed to create default graphics pipeline state.\n");
         return result;
-    }
+    }*/
 
     result = E_POINTER;
     if (m_ColourOnlyVertexShaderBlob != nullptr && m_ColourOnlyPixelShaderBlob != nullptr)
@@ -980,7 +1012,8 @@ HRESULT Renderer::CreateGraphicsPipelines()
         pipelineStateDesc.VS.BytecodeLength = m_ColourOnlyVertexShaderBlob->GetBufferSize();
         pipelineStateDesc.PS.pShaderBytecode = m_ColourOnlyPixelShaderBlob->GetBufferPointer();
         pipelineStateDesc.PS.BytecodeLength = m_ColourOnlyPixelShaderBlob->GetBufferSize();
-        result = m_Device->CreateGraphicsPipelineState(&pipelineStateDesc, IID_PPV_ARGS(&m_ColourOnlyPipeline));
+        //result = m_Device->CreateGraphicsPipelineState(&pipelineStateDesc, IID_PPV_ARGS(&m_ColourOnlyPipeline));
+        result = m_Device->CreateGraphicsPipelineState(&pipelineStateDesc, IID_PPV_ARGS(&m_DefaultPipeline));
     }
 
     if (FAILED(result))
@@ -1069,6 +1102,30 @@ HRESULT Renderer::CreateDefaultBuffer(ID3D12Resource*& defaultBuffer, ID3D12Reso
     CD3DX12_RESOURCE_BARRIER toReadTransition = CD3DX12_RESOURCE_BARRIER::Transition(defaultBuffer, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_GENERIC_READ);
     m_CommandList->ResourceBarrier(1, &toReadTransition);
 
+    ID3D12CommandList* commandLists = { m_CommandList };
+    result = m_CommandList->Close();
+    if (FAILED(result))
+    {
+        Debug::LogSevere("Failed to close command list during default buffer creation.\n");
+        return result;
+    }
+       
+    m_CommandQueue->ExecuteCommandLists(1, &commandLists);
+
+    result = FlushCommandQueue();
+    if (FAILED(result))
+    {
+        Debug::LogSevere("Failed to flush command queue during default buffer creation.\n");
+        return result;
+    }
+
+    result = ResetCommandList();
+    if (FAILED(result))
+    {
+        Debug::LogSevere("Failed to reset command list during default buffer creation.\n");
+        return result;
+    }
+
     return S_OK;
 }
 
@@ -1099,27 +1156,19 @@ HRESULT Renderer::UpdateConstantBuffer(const int& entityIndex, ConstantBuffer& c
 {
     CUSTOM_ASSERT(m_IsInitialised);
 
-    CD3DX12_GPU_DESCRIPTOR_HANDLE cbv(m_CBVHeap->GetGPUDescriptorHandleForHeapStart());
-    cbv.Offset(entityIndex, m_CBVSRVDescriptorHeapSize);
-    m_CommandList->SetGraphicsRootDescriptorTable(entityIndex, cbv);
+    D3D12_SUBRESOURCE_DATA subresourceData{};
+    subresourceData.pData = &cb;
+    subresourceData.RowPitch = sizeof(ConstantBuffer);
+    subresourceData.SlicePitch = sizeof(ConstantBuffer);
 
-    BYTE* mappedData = nullptr;
-    HRESULT result = m_ConstantBufferArray[entityIndex]->Map(0, nullptr, reinterpret_cast<void**>(&mappedData));
-    if (FAILED(result))
-    {
-        Debug::LogSevere("Failed to map constant buffer address for update.\n");
-        return result;
-    }
+    CD3DX12_RESOURCE_BARRIER toCopyTransition = CD3DX12_RESOURCE_BARRIER::Transition(m_ConstantBufferArray[entityIndex], D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COPY_DEST);
+    m_CommandList->ResourceBarrier(1, &toCopyTransition);
 
-    memcpy(&mappedData, &cb, sizeof(ConstantBuffer));
+    UpdateSubresources(m_CommandList, m_ConstantBufferArray[entityIndex], m_ConstantBufferGPUUploaderArray[entityIndex], 0, 0, 1, &subresourceData);
 
-    if (m_ConstantBufferArray[entityIndex] != nullptr)
-    {
-        m_ConstantBufferArray[entityIndex]->Unmap(0, nullptr);
-    }
-
-    mappedData = nullptr;
-
+    CD3DX12_RESOURCE_BARRIER toReadTransition = CD3DX12_RESOURCE_BARRIER::Transition(m_ConstantBufferArray[entityIndex], D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_GENERIC_READ);
+    m_CommandList->ResourceBarrier(1, &toReadTransition);
+ 
     return S_OK;
 }
 
@@ -1133,7 +1182,7 @@ void Renderer::ClearFrame()
         return;
     }
 
-    if (FAILED(m_CommandList->Reset(m_CommandAllocator, m_DefaultPipeline)))
+    if (FAILED(ResetCommandList()))
     {
         Debug::LogSevere("Failed to reset command allocator.\n");
         return;
@@ -1164,7 +1213,7 @@ void Renderer::ClearFrame()
     cbv.Offset(0, m_CBVSRVDescriptorHeapSize);
     m_CommandList->SetGraphicsRootDescriptorTable(0, cbv);
 
-    m_CommandList->SetPipelineState(m_ColourOnlyPipeline);
+    m_CommandList->SetPipelineState(m_DefaultPipeline);
 }
 
 void Renderer::PresentFrame()
@@ -1187,6 +1236,7 @@ void Renderer::PresentFrame()
     m_CommandQueue->ExecuteCommandLists(1, &commandLists);
 
     HRESULT hr = m_SwapChain->Present(0, 0);
+
     if (FAILED(hr))
     {
         HRESULT removalReason = m_Device->GetDeviceRemovedReason();

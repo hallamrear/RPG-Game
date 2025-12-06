@@ -108,6 +108,7 @@ void GameInstance::Render()
 
 	m_Renderer.ClearFrame();
 
+	m_Renderer.UpdateConstantBuffer(0, *m_ConstantBuffer);
 	model.TestRender(m_Renderer);
 
 	m_Renderer.PresentFrame();

@@ -64,14 +64,13 @@ private:
 	D3D12_RECT m_ScissorRect;
 	HRESULT SetupInitialViewportAndScissorRect();
 
-	HRESULT FlushCommandQueue();
-
 	std::vector<D3D12_INPUT_ELEMENT_DESC> m_DefaultInputLayout;
 	std::vector<D3D12_INPUT_ELEMENT_DESC> m_ColourOnlyInputLayout;
 	HRESULT CreateInputLayout();
 	void DestroyInputLayout();
 
 	ID3D12Resource* m_ConstantBufferArray[MAX_NUM_ENTITIES];
+	ID3D12Resource* m_ConstantBufferGPUUploaderArray[MAX_NUM_ENTITIES];
 	HRESULT CreateConstantBuffers();
 	void DestroyConstantBuffers();
 
@@ -105,6 +104,10 @@ public:
 
 	const bool& IsInitialised() const;
 
+	ID3D12CommandQueue* GetCommandQueue();
+	const ID3D12CommandQueue* GetCommandQueue() const;
+
+	HRESULT ResetCommandList();
 	ID3D12GraphicsCommandList* GetCommandList();
 	const ID3D12GraphicsCommandList* GetCommandList() const;
 
@@ -127,5 +130,6 @@ public:
 	const int& GetWindowHeight() const;
 
 	void ClearFrame();
+	HRESULT FlushCommandQueue();
 	void PresentFrame();
 };
