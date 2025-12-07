@@ -102,14 +102,16 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
         c = 0;
 
-        while (accumulator >= TARGET_FPS_FRAMETIME_FLOAT)
-        {
-            gInstance->ProcessInput();
-            gInstance->Update(deltaTime);
-            accumulator -= deltaTime;
-            c++;
-        }
+        //while (accumulator >= TARGET_FPS_FRAMETIME_FLOAT)
+        //{
+        //    gInstance->ProcessInput();
+        //    gInstance->Update(deltaTime);
+        //    accumulator -= deltaTime;
+        //    c++;
+        //}
 
+        gInstance->ProcessInput();
+        gInstance->Update(deltaTime);
         gInstance->Render();
 
         printf("%i updates per render.\n", c);

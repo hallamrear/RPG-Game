@@ -50,9 +50,9 @@ bool GameInstance::Initialise(const HWND& windowHandle)
 	GeometryLoader::Load(m_Renderer, model, "firetruck.glb");
 
 	m_ConstantBuffer = new ConstantBuffer();
-	DirectX::XMStoreFloat4x4(&m_ConstantBuffer->World, DirectX::XMMatrixIdentity());
-	DirectX::XMStoreFloat4x4(&m_ConstantBuffer->View, DirectX::XMMatrixLookAtLH({ 0.0f, 1.0f, -5.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f }));
-	DirectX::XMStoreFloat4x4(&m_ConstantBuffer->Projection, DirectX::XMMatrixPerspectiveFovLH(70.0f, 1920.0f / 1080.0f, 1.0f, 1000.0f));
+	DirectX::XMStoreFloat4x4(&m_ConstantBuffer->World, DirectX::XMMatrixTranspose(DirectX::XMMatrixIdentity()));
+	DirectX::XMStoreFloat4x4(&m_ConstantBuffer->View, DirectX::XMMatrixTranspose(DirectX::XMMatrixLookAtLH({ 0.0f, 1.0f, -5.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f })));
+	DirectX::XMStoreFloat4x4(&m_ConstantBuffer->Projection, DirectX::XMMatrixTranspose(DirectX::XMMatrixPerspectiveFovLH(70.0f, 1920.0f / 1080.0f, 1.0f, 1000.0f)));
 
 	//Setting to closed as the first refernce to the command list will open it.
 	if (m_Renderer.GetCommandList())
@@ -84,21 +84,16 @@ void GameInstance::ProcessInput()
 {
 	if (!IsRunning())
 		return;
-
-	Debug::LogMessage("Process Input\n");
 }
+
+static float timer = 0.0f;
 
 void GameInstance::Update(const float& deltaTime)
 {
 	if (!IsRunning())
 		return;
 
-	Debug::LogMessage("Update\n");
-	DirectX::XMFLOAT4 cc = m_Renderer.GetClearColour();
-	cc.x += deltaTime;
-	cc.x = fmodf(cc.x, 1.0f);
-
-	m_Renderer.SetClearColour(cc);
+	timer += deltaTime;
 }
 
 void GameInstance::Render()
@@ -108,7 +103,9 @@ void GameInstance::Render()
 
 	m_Renderer.ClearFrame();
 
-	m_Renderer.UpdateConstantBuffer(0, *m_ConstantBuffer);
+	DirectX::XMStoreFloat4x4(&m_ConstantBuffer->World, DirectX::XMMatrixTranspose(DirectX::XMMatrixRotationRollPitchYaw(timer / 2.0f, timer, 0.0f)));
+
+	m_Renderer.UpdateConstantBuffer(*m_ConstantBuffer);
 	model.TestRender(m_Renderer);
 
 	m_Renderer.PresentFrame();

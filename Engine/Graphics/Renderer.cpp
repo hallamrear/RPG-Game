@@ -16,7 +16,7 @@ const DXGI_FORMAT Renderer::m_DepthStencilBufferFormat = DXGI_FORMAT::DXGI_FORMA
 
 Renderer::Renderer()
 {
-    m_CBVHeap = nullptr;
+    m_CBVHeaps = nullptr;
     m_ClearColour = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
     m_IsInitialised = false;
     m_DXGIFactory = nullptr;
@@ -49,16 +49,39 @@ Renderer::Renderer()
     m_DefaultPipeline = nullptr;
     m_RootSignature = nullptr;
 
-    for (size_t i = 0; i < MAX_NUM_ENTITIES; i++)
+    m_ConstantBufferAddressArray = new char*[m_SwapChainBufferCount];
+    m_ConstantBufferGPUUploaderArray = new ID3D12Resource*[m_SwapChainBufferCount];
+    m_CBVHeaps = new ID3D12DescriptorHeap*[m_SwapChainBufferCount];
+
+    for (size_t i = 0; i < m_SwapChainBufferCount; i++)
     {
-        m_ConstantBufferGPUUploaderArray[i] = { nullptr };
-        m_ConstantBufferArray[i] = { nullptr };
+        m_ConstantBufferGPUUploaderArray[i] = nullptr;
+        m_ConstantBufferAddressArray[i] = nullptr;
+        m_CBVHeaps[i] = nullptr;
     }
 }
 
 Renderer::~Renderer()
 {
     CUSTOM_ASSERT(IsInitialised() == false);
+
+    if (m_ConstantBufferGPUUploaderArray != nullptr)
+    {
+        delete[] m_ConstantBufferGPUUploaderArray;
+        m_ConstantBufferGPUUploaderArray = nullptr;
+    }
+
+    if (m_ConstantBufferAddressArray != nullptr)
+    {
+        delete[] m_ConstantBufferAddressArray;
+        m_ConstantBufferAddressArray = nullptr;
+    }
+
+    if (m_CBVHeaps != nullptr)
+    {
+        delete[] m_CBVHeaps;
+        m_CBVHeaps = nullptr;
+    }
 }
 
 const bool& Renderer::IsInitialised() const
@@ -704,38 +727,59 @@ HRESULT Renderer::FlushCommandQueue()
 
 HRESULT Renderer::CreateConstantBuffers()
 {
-    CD3DX12_RESOURCE_DESC resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(ConstantBuffer));
+    CD3DX12_RESOURCE_DESC resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(1024 * 64);
     CD3DX12_HEAP_PROPERTIES heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-    
-    ConstantBuffer empty = {};
+
+    ConstantBuffer a = {};
+    DirectX::XMStoreFloat4x4(&a.Padding, DirectX::XMMatrixTranslation(10.0f, 0.0f, 0.0f));
+    ConstantBuffer b = {};
+    DirectX::XMStoreFloat4x4(&b.Padding, DirectX::XMMatrixTranslation(69.0f, 69.0f, 69.0f));
 
     HRESULT result = E_FAIL;
 
-    for (size_t i = 0; i < MAX_NUM_ENTITIES; i++)
+    for (size_t i = 0; i < m_SwapChainBufferCount; i++)
     {
-        result = CreateDefaultBuffer(m_ConstantBufferArray[i], m_ConstantBufferGPUUploaderArray[i], &empty, sizeof(ConstantBuffer));
+        //Creating GPU upload buffer.
+        CD3DX12_HEAP_PROPERTIES uploadHeapProperties = CD3DX12_HEAP_PROPERTIES::CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+
+        result = m_Device->CreateCommittedResource(
+            &uploadHeapProperties,
+            D3D12_HEAP_FLAG_NONE,
+            &resourceDesc,
+            D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_GENERIC_READ,
+            nullptr,
+            IID_PPV_ARGS(&m_ConstantBufferGPUUploaderArray[i]));
+
+        std::wstring name = L"Constant Buffer GPU Upload Heap " + std::to_wstring(i);
+        m_ConstantBufferGPUUploaderArray[i]->SetName(name.c_str());
 
         if (FAILED(result))
         {
-            Debug::LogSevere("Failed during constant buffer array %i creation.\n", i);
+            Debug::LogSevere("Failed to create commited resource for constant buffer's GPU upload buffer.\n");
+            return result;
+        }
+        
+        D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc{};
+        cbvDesc.BufferLocation = m_ConstantBufferGPUUploaderArray[i]->GetGPUVirtualAddress();
+        cbvDesc.SizeInBytes = (sizeof(ConstantBuffer) + 255) & ~255;
+
+        m_Device->CreateConstantBufferView(&cbvDesc, m_CBVHeaps[i]->GetCPUDescriptorHandleForHeapStart());
+
+        CD3DX12_RANGE readRange(0, 0);
+        result = m_ConstantBufferGPUUploaderArray[i]->Map(0, &readRange, reinterpret_cast<void**>(&m_ConstantBufferAddressArray[i]));
+
+        if (FAILED(result) || m_ConstantBufferAddressArray[i] == nullptr)
+        {
+            Debug::LogSevere("Failed to map constant buffer's GPU upload heap address.\n");
             return result;
         }
 
-        if (m_ConstantBufferArray[i])
-        {
-            m_ConstantBufferArray[i]->SetName(L"Constant Buffer (CPU)");
-        }
+        if (i == 0)
+            memcpy(m_ConstantBufferAddressArray[i], &a, sizeof(ConstantBuffer));
+        else
+            memcpy(m_ConstantBufferAddressArray[i], &b, sizeof(ConstantBuffer));
 
-        if (m_ConstantBufferGPUUploaderArray[i])
-        {
-            m_ConstantBufferGPUUploaderArray[i]->SetName(L"Constant Buffer (GPU)");
-        }
-
-        D3D12_GPU_VIRTUAL_ADDRESS bufferAddr = m_ConstantBufferGPUUploaderArray[i]->GetGPUVirtualAddress();
-        D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc{};
-        cbvDesc.BufferLocation = bufferAddr;
-        cbvDesc.SizeInBytes = sizeof(ConstantBuffer);
-        m_Device->CreateConstantBufferView(&cbvDesc, m_CBVHeap->GetCPUDescriptorHandleForHeapStart());
+        //memcpy(m_ConstantBufferAddressArray[i], &empty, sizeof(ConstantBuffer));
     }
 
     return S_OK;
@@ -743,18 +787,19 @@ HRESULT Renderer::CreateConstantBuffers()
 
 void Renderer::DestroyConstantBuffers()
 {
-    for (size_t i = 0; i < MAX_NUM_ENTITIES; i++)
+    for (size_t i = 0; i < m_SwapChainBufferCount; i++)
     {
+        CD3DX12_RANGE readRange(0, 0);
         if (m_ConstantBufferGPUUploaderArray[i] != nullptr)
         {
+            m_ConstantBufferGPUUploaderArray[i]->Unmap(0, &readRange);
             m_ConstantBufferGPUUploaderArray[i]->Release();
             m_ConstantBufferGPUUploaderArray[i] = nullptr;
         }
 
-        if (m_ConstantBufferArray[i] != nullptr)
+        if (m_ConstantBufferAddressArray[i] != nullptr)
         {
-            m_ConstantBufferArray[i]->Release();
-            m_ConstantBufferArray[i] = nullptr;
+            m_ConstantBufferAddressArray[i] = nullptr;
         }
     }
 }
@@ -767,15 +812,34 @@ HRESULT Renderer::CreateConstantBufferHeap()
     heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
     heapDesc.NodeMask = 0;
 
-    return m_Device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&m_CBVHeap));
+    HRESULT result = E_FAIL;
+
+    for (size_t i = 0; i < m_SwapChainBufferCount; i++)
+    {
+        result = m_Device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&m_CBVHeaps[i]));
+
+        if (FAILED(result))
+        {
+            Debug::LogSevere("Failed to create a constant buffer descriptor heap.\n");
+            break;
+        }
+
+        std::wstring name = L"Constant Buffer Heap " + std::to_wstring(i);
+        m_CBVHeaps[i]->SetName(name.c_str());
+    }
+
+    return result;
 }
 
 void Renderer::DestroyConstantBufferHeap()
 {
-    if (m_CBVHeap != nullptr)
+    for (size_t i = 0; i < m_SwapChainBufferCount; i++)
     {
-        m_CBVHeap->Release();
-        m_CBVHeap = nullptr;
+        if (m_CBVHeaps[i] != nullptr)
+        {
+            m_CBVHeaps[i]->Release();
+            m_CBVHeaps[i] = nullptr;
+        }        
     }
 }
 
@@ -786,6 +850,7 @@ HRESULT Renderer::CreateRootSignatureAndDescriptorTable()
     //Create a descriptor table for cbv
     CD3DX12_DESCRIPTOR_RANGE cbvTable{};
     cbvTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
+    cbvTable.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
     CD3DX12_DESCRIPTOR_RANGE srvTable{};
     srvTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 5, 0);
 
@@ -842,15 +907,6 @@ HRESULT Renderer::CreateRootSignatureAndDescriptorTable()
         rootSigBlob->Release();
         rootSigBlob = nullptr;
     }
-
-    m_CommandList->SetGraphicsRootSignature(m_RootSignature);
-    ID3D12DescriptorHeap* heaps[] = { m_CBVHeap };
-
-    m_CommandList->SetDescriptorHeaps(_countof(heaps), heaps);
-
-    CD3DX12_GPU_DESCRIPTOR_HANDLE cbv(m_CBVHeap->GetGPUDescriptorHandleForHeapStart());
-    cbv.Offset(0, m_CBVSRVDescriptorHeapSize);
-    m_CommandList->SetGraphicsRootDescriptorTable(0, cbv);
 
     return S_OK;
 }
@@ -1042,8 +1098,8 @@ void Renderer::DestroyGraphicsPipelines()
 
 D3D12_CPU_DESCRIPTOR_HANDLE Renderer::GetCBVSRVDescriptorHeapStart() const
 {
-    CUSTOM_ASSERT((m_CBVHeap != nullptr));
-    return m_CBVHeap->GetCPUDescriptorHandleForHeapStart();
+    CUSTOM_ASSERT((m_CBVHeaps != nullptr));
+    return m_CBVHeaps[m_CurrentBackbufferIndex]->GetCPUDescriptorHandleForHeapStart();
 }
 
 HRESULT Renderer::CreateDefaultBuffer(ID3D12Resource*& defaultBuffer, ID3D12Resource*& gpuUploadBuffer, const void* data, const size_t& sizeBytes)
@@ -1152,23 +1208,15 @@ void Renderer::SetClearColour(const DirectX::XMFLOAT4& newColour)
     m_ClearColour = newColour;
 }
 
-HRESULT Renderer::UpdateConstantBuffer(const int& entityIndex, ConstantBuffer& cb)
+HRESULT Renderer::UpdateConstantBuffer(ConstantBuffer& cb)
 {
     CUSTOM_ASSERT(m_IsInitialised);
 
-    D3D12_SUBRESOURCE_DATA subresourceData{};
-    subresourceData.pData = &cb;
-    subresourceData.RowPitch = sizeof(ConstantBuffer);
-    subresourceData.SlicePitch = sizeof(ConstantBuffer);
+    if (m_ConstantBufferAddressArray[m_CurrentBackbufferIndex] != nullptr)
+    {
+        memcpy(m_ConstantBufferAddressArray[m_CurrentBackbufferIndex], &cb, sizeof(ConstantBuffer));
+    }
 
-    CD3DX12_RESOURCE_BARRIER toCopyTransition = CD3DX12_RESOURCE_BARRIER::Transition(m_ConstantBufferArray[entityIndex], D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COPY_DEST);
-    m_CommandList->ResourceBarrier(1, &toCopyTransition);
-
-    UpdateSubresources(m_CommandList, m_ConstantBufferArray[entityIndex], m_ConstantBufferGPUUploaderArray[entityIndex], 0, 0, 1, &subresourceData);
-
-    CD3DX12_RESOURCE_BARRIER toReadTransition = CD3DX12_RESOURCE_BARRIER::Transition(m_ConstantBufferArray[entityIndex], D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_GENERIC_READ);
-    m_CommandList->ResourceBarrier(1, &toReadTransition);
- 
     return S_OK;
 }
 
@@ -1206,11 +1254,12 @@ void Renderer::ClearFrame()
     m_CommandList->ClearRenderTargetView(backBufferHandle, Colour, 0, nullptr);
     m_CommandList->OMSetRenderTargets(1, &backBufferHandle, true, &dsvBufferHandle);
 
-    ID3D12DescriptorHeap* heaps[] = { m_CBVHeap };
     m_CommandList->SetGraphicsRootSignature(m_RootSignature);
+
+    ID3D12DescriptorHeap* heaps[] = { m_CBVHeaps[m_CurrentBackbufferIndex] };
     m_CommandList->SetDescriptorHeaps(_countof(heaps), heaps);
-    CD3DX12_GPU_DESCRIPTOR_HANDLE cbv(m_CBVHeap->GetGPUDescriptorHandleForHeapStart());
-    cbv.Offset(0, m_CBVSRVDescriptorHeapSize);
+
+    CD3DX12_GPU_DESCRIPTOR_HANDLE cbv(m_CBVHeaps[m_CurrentBackbufferIndex]->GetGPUDescriptorHandleForHeapStart());
     m_CommandList->SetGraphicsRootDescriptorTable(0, cbv);
 
     m_CommandList->SetPipelineState(m_DefaultPipeline);

@@ -69,12 +69,12 @@ private:
 	HRESULT CreateInputLayout();
 	void DestroyInputLayout();
 
-	ID3D12Resource* m_ConstantBufferArray[MAX_NUM_ENTITIES];
-	ID3D12Resource* m_ConstantBufferGPUUploaderArray[MAX_NUM_ENTITIES];
+	char** m_ConstantBufferAddressArray;
+	ID3D12Resource** m_ConstantBufferGPUUploaderArray;
 	HRESULT CreateConstantBuffers();
 	void DestroyConstantBuffers();
 
-	ID3D12DescriptorHeap* m_CBVHeap;
+	ID3D12DescriptorHeap** m_CBVHeaps;
 	HRESULT CreateConstantBufferHeap();
 	void DestroyConstantBufferHeap();
 
@@ -121,7 +121,7 @@ public:
 	const DirectX::XMFLOAT4& GetClearColour() const;
 	void SetClearColour(const DirectX::XMFLOAT4& newColour);
 
-	HRESULT UpdateConstantBuffer(const int& entityIndex, ConstantBuffer& cb);
+	HRESULT UpdateConstantBuffer(ConstantBuffer& cb);
 
 	static bool Initialise(Renderer& renderer, const HWND& windowHandle);
 	static void Shutdown(Renderer& renderer);
