@@ -47,7 +47,7 @@ bool GameInstance::Initialise(const HWND& windowHandle)
 
 	m_IsInitalised &= Renderer::Initialise(m_Renderer, windowHandle);
 
-	GeometryLoader::Load(m_Renderer, model, "firetruck.glb");
+	GeometryLoader::Load(m_Renderer, model, "Resources/Test_Model.gltf");
 
 	m_ConstantBuffer = new ConstantBuffer();
 	DirectX::XMStoreFloat4x4(&m_ConstantBuffer->World, DirectX::XMMatrixTranspose(DirectX::XMMatrixIdentity()));

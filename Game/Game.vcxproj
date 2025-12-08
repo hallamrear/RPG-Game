@@ -75,24 +75,28 @@
     <IntDir>$(SolutionDir)Builds\$(ProjectName)\$(Configuration)\$(PlatformTarget)\Intermediate\</IntDir>
     <CopyLocalDeploymentContent>true</CopyLocalDeploymentContent>
     <CopyLocalProjectReference>true</CopyLocalProjectReference>
+    <TargetName>$(ProjectName)</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <OutDir>$(SolutionDir)Builds\$(ProjectName)\$(Configuration)\$(PlatformTarget)\</OutDir>
     <IntDir>$(SolutionDir)Builds\$(ProjectName)\$(Configuration)\$(PlatformTarget)\Intermediate\</IntDir>
     <CopyLocalDeploymentContent>true</CopyLocalDeploymentContent>
     <CopyLocalProjectReference>true</CopyLocalProjectReference>
+    <TargetName>$(ProjectName)</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <OutDir>$(SolutionDir)Builds\$(ProjectName)\$(Configuration)\$(PlatformTarget)\</OutDir>
     <IntDir>$(SolutionDir)Builds\$(ProjectName)\$(Configuration)\$(PlatformTarget)\Intermediate\</IntDir>
     <CopyLocalDeploymentContent>true</CopyLocalDeploymentContent>
     <CopyLocalProjectReference>true</CopyLocalProjectReference>
+    <TargetName>$(ProjectName)</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <OutDir>$(SolutionDir)Builds\$(ProjectName)\$(Configuration)\$(PlatformTarget)\</OutDir>
     <IntDir>$(SolutionDir)Builds\$(ProjectName)\$(Configuration)\$(PlatformTarget)\Intermediate\</IntDir>
     <CopyLocalDeploymentContent>true</CopyLocalDeploymentContent>
     <CopyLocalProjectReference>true</CopyLocalProjectReference>
+    <TargetName>$(ProjectName)</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
