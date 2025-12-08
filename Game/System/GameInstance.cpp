@@ -93,6 +93,9 @@ void GameInstance::Update(const float& deltaTime)
 	if (!IsRunning())
 		return;
 
+	DirectX::XMStoreFloat4x4(&m_ConstantBuffer->World, DirectX::XMMatrixTranspose(DirectX::XMMatrixRotationRollPitchYaw(timer / 2.0f, timer, 0.0f)));
+	m_Renderer.UpdateConstantBuffer(*m_ConstantBuffer);
+
 	timer += deltaTime;
 }
 
@@ -103,9 +106,6 @@ void GameInstance::Render()
 
 	m_Renderer.ClearFrame();
 
-	DirectX::XMStoreFloat4x4(&m_ConstantBuffer->World, DirectX::XMMatrixTranspose(DirectX::XMMatrixRotationRollPitchYaw(timer / 2.0f, timer, 0.0f)));
-
-	m_Renderer.UpdateConstantBuffer(*m_ConstantBuffer);
 	model.TestRender(m_Renderer);
 
 	m_Renderer.PresentFrame();
