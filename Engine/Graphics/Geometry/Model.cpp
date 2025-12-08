@@ -26,9 +26,8 @@ Model::~Model()
 #include <Graphics/Renderer.h>
 void Model::TestRender(Renderer& renderer)
 {
-	Mesh* mesh = m_Meshes[0];
-	renderer.GetCommandList()->IASetVertexBuffers(0, 1, &mesh->GetVertexBufferView());
-	renderer.GetCommandList()->IASetIndexBuffer(&mesh->GetIndexBufferView());
-	renderer.GetCommandList()->IASetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY::D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	renderer.GetCommandList()->DrawIndexedInstanced(36, 1, 0, 0, 0);
+	for (size_t i = 0; i < m_Meshes.size(); i++)
+	{
+		m_Meshes[i]->Render(renderer);
+	}
 }

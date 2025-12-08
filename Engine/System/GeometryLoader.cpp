@@ -9,6 +9,17 @@
 #include <Graphics/Geometry/Model.h>
 #include <Graphics/Renderer.h>
 
+static const std::map<std::string, size_t> c_AccessorTypeSizeMap =
+{
+    { "SCALAR", 1 },
+    { "VEC2", 2 },
+    { "VEC3", 3 },
+    { "VEC4", 4 },
+    { "MAT2", 4 },
+    { "MAT3", 9 },
+    { "MAT4", 16 },
+};
+
 bool GeometryLoader::CreateModelFromGLTF(Renderer& renderer, Model& model, tinygltf::Model& gltfModel)
 {
     bool loadedOk = true;
@@ -21,26 +32,181 @@ bool GeometryLoader::CreateModelFromGLTF(Renderer& renderer, Model& model, tinyg
 
 bool GeometryLoader::LoadGeometryFromGLTF(Renderer& renderer, Model& model, tinygltf::Model& gltfModel)
 {
-    ID3D12Resource* vbUploader = nullptr;
-    ID3D12Resource* vertexBuffer = nullptr;
-    ID3D12Resource* ibUploader = nullptr;
-    ID3D12Resource* indexBuffer = nullptr;
+    size_t meshCount = gltfModel.meshes.size();
+    size_t primitiveCount = 0;
+    size_t primitiveTargetCount = 0;
+    size_t primitiveAttributeCount = 0;
 
-    Vertex vertices[] =
+    D3D12_PRIMITIVE_TOPOLOGY foundTopology = D3D12_PRIMITIVE_TOPOLOGY::D3D_PRIMITIVE_TOPOLOGY_UNDEFINED;
+    std::vector<Vertex> vertices = std::vector<Vertex>();
+    std::vector<uint16_t> indices = std::vector<uint16_t>();
+    std::vector<uint16_t> weights = std::vector<uint16_t>();
+    std::vector<uint16_t> joints = std::vector<uint16_t>();
+
+    for (size_t i = 0; i < meshCount; i++)
     {
-        { DirectX::XMFLOAT3(-1.0f, -1.0f, -1.0f), DirectX::XMFLOAT3(1.0f, 0.0f, 1.0f), DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f), DirectX::XMFLOAT2(0.0f, 0.0f) },
-        { DirectX::XMFLOAT3(-1.0f, +1.0f, -1.0f), DirectX::XMFLOAT3(0.0f, 1.0f, 1.0f), DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f), DirectX::XMFLOAT2(0.0f, 1.0f) },
-        { DirectX::XMFLOAT3(+1.0f, +1.0f, -1.0f), DirectX::XMFLOAT3(1.0f, 1.0f, 0.0f), DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f), DirectX::XMFLOAT2(1.0f, 0.0f) },
-        { DirectX::XMFLOAT3(+1.0f, -1.0f, -1.0f), DirectX::XMFLOAT3(0.0f, 1.0f, 1.0f), DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f), DirectX::XMFLOAT2(1.0f, 1.0f) },
-        { DirectX::XMFLOAT3(-1.0f, -1.0f, +1.0f), DirectX::XMFLOAT3(0.0f, 1.0f, 0.0f), DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f), DirectX::XMFLOAT2(0.0f, 0.0f) },
-        { DirectX::XMFLOAT3(-1.0f, +1.0f, +1.0f), DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f), DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f), DirectX::XMFLOAT2(0.0f, 1.0f) },
-        { DirectX::XMFLOAT3(+1.0f, +1.0f, +1.0f), DirectX::XMFLOAT3(1.0f, 0.0f, 1.0f), DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f), DirectX::XMFLOAT2(1.0f, 0.0f) },
-        { DirectX::XMFLOAT3(+1.0f, -1.0f, +1.0f), DirectX::XMFLOAT3(0.0f, 1.0f, 0.0f), DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f), DirectX::XMFLOAT2(1.0f, 1.0f) }
-    };
+        tinygltf::Mesh& gltfMesh = gltfModel.meshes[i];
+        
+        primitiveCount = gltfModel.meshes[i].primitives.size();
+        primitiveTargetCount = 0;
 
-    size_t vbSize = sizeof(Vertex) * 8;
+        for (size_t p = 0; p < primitiveCount; p++)
+        {
+            tinygltf::Primitive& primitive = gltfMesh.primitives[p];
+            
+            switch (primitive.mode)
+            {
+            case TINYGLTF_MODE_POINTS: { foundTopology = D3D12_PRIMITIVE_TOPOLOGY::D3D_PRIMITIVE_TOPOLOGY_POINTLIST; } break;
+            case TINYGLTF_MODE_LINE: { foundTopology = D3D12_PRIMITIVE_TOPOLOGY::D3D_PRIMITIVE_TOPOLOGY_LINELIST; } break;
+            case TINYGLTF_MODE_LINE_STRIP: { foundTopology = D3D12_PRIMITIVE_TOPOLOGY::D3D_PRIMITIVE_TOPOLOGY_LINESTRIP; } break;
+            case TINYGLTF_MODE_TRIANGLES: { foundTopology = D3D12_PRIMITIVE_TOPOLOGY::D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST; } break;
+            case TINYGLTF_MODE_TRIANGLE_STRIP: { foundTopology = D3D12_PRIMITIVE_TOPOLOGY::D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP; } break;
+            case TINYGLTF_MODE_TRIANGLE_FAN: { foundTopology = D3D12_PRIMITIVE_TOPOLOGY::D3D_PRIMITIVE_TOPOLOGY_TRIANGLEFAN; } break;
+            
+            case TINYGLTF_MODE_LINE_LOOP:
+            default:
+                Debug::LogSevere("Unsupported primitive topology in gltf file.\n");
+                return false;
+                break;
+            }
 
-    HRESULT result = renderer.CreateDefaultBuffer(vertexBuffer, vbUploader, (const void*)vertices, vbSize);
+            int indicesBufferIndex = primitive.indices;
+
+            bool usesIndexBuffer = (indicesBufferIndex > 0);
+
+            primitiveAttributeCount = primitive.attributes.size();
+            
+            if (primitiveAttributeCount <= 0)
+            {
+                Debug::LogSevere("No primitive attributes found.\n");
+                return false;
+            }
+
+            bool loadedVertices = GetVertexDataFromGLTFPrimitive(vertices, gltfModel, primitive);
+            bool loadedIndices = GetIndexDataFromGLTFPrimitive(indices, gltfModel, primitive);
+
+            Mesh* mesh = CreateMeshFromData(renderer, model, vertices, indices);
+
+            if (mesh == nullptr)
+            {
+                Debug::LogSevere("Failed to load mesh data from gltf.\n");
+                return false;
+            }
+
+            mesh->m_TopologyType = foundTopology;
+        }
+
+        primitiveCount = 0;
+
+    }
+
+    return true;
+}
+
+bool GeometryLoader::GetVertexDataFromGLTFPrimitive(std::vector<Vertex>& vertices, const tinygltf::Model& model, const tinygltf::Primitive& primitive)
+{
+
+
+    return false;
+}
+
+bool GeometryLoader::GetIndexDataFromGLTFPrimitive(std::vector<uint16_t>& indices, const tinygltf::Model& model, const tinygltf::Primitive& primitive)
+{
+    int indicesAccessorIndex = primitive.indices;
+
+    if (indicesAccessorIndex <= 0)
+    {
+        Debug::LogWarning("Failed to find a valid indices accessor index.\n");
+        return false;
+    }
+        
+    tinygltf::Accessor indicesAccessor = model.accessors[indicesAccessorIndex];
+
+    switch (indicesAccessor.type)
+    {
+    case TINYGLTF_TYPE_SCALAR:
+    {
+
+    }
+    break;
+
+    case TINYGLTF_TYPE_VEC2:
+    case TINYGLTF_TYPE_VEC3:
+    case TINYGLTF_TYPE_VEC4:
+    case TINYGLTF_TYPE_MAT2:
+    case TINYGLTF_TYPE_MAT3:
+    case TINYGLTF_TYPE_MAT4:
+    case TINYGLTF_TYPE_VECTOR:
+    case TINYGLTF_TYPE_MATRIX:
+    default:
+        Debug::LogSevere("Unsupported type for index buffer.\n");
+        return false;
+        break;
+    }
+
+    switch (indicesAccessor.componentType)
+    {
+
+    case TINYGLTF_PARAMETER_TYPE_UNSIGNED_SHORT:
+    {
+
+    }
+    break;
+
+    case TINYGLTF_PARAMETER_TYPE_BYTE:
+    case TINYGLTF_PARAMETER_TYPE_UNSIGNED_BYTE:
+    case TINYGLTF_PARAMETER_TYPE_SHORT:
+    case TINYGLTF_PARAMETER_TYPE_INT:
+    case TINYGLTF_PARAMETER_TYPE_UNSIGNED_INT:
+    case TINYGLTF_PARAMETER_TYPE_FLOAT:
+    default:
+        Debug::LogSevere("Currently unsupported component type for index buffer.\n");
+        return false;
+        break;
+    }
+
+    size_t expectedIndexCount = indicesAccessor.count;
+
+    int indicesBufferViewIndex = indicesAccessor.bufferView;
+    int indicesByteOffset = indicesAccessor.byteOffset;
+
+    const tinygltf::BufferView& indicesBufferView = model.bufferViews[indicesBufferViewIndex];
+    int indicesByteStride = indicesAccessor.ByteStride(indicesBufferView);
+
+    if (indicesByteStride == -1)
+    {
+        Debug::LogSevere("Failed to get buffer view stride.\n");
+        return false;
+    }
+
+    if (indicesByteStride != sizeof(uint16_t))
+    {
+        Debug::LogSevere("ByteStride from buffer view and expected index size do not match.\n");
+        return false;
+    }
+
+    int indicesBufferIndex = indicesBufferView.buffer;
+    const tinygltf::Buffer& indicesBuffer = model.buffers[indicesBufferIndex];
+
+    size_t endIndex = indices.size();
+    indices.resize(indices.size() + expectedIndexCount);
+
+    size_t dataSize = sizeof(uint16_t) * expectedIndexCount;
+    memcpy(&indices[endIndex], indicesBuffer.data.data() + indicesByteOffset, dataSize);
+
+    return false;
+}
+
+Mesh* GeometryLoader::CreateMeshFromData(Renderer& renderer, Model& model, std::vector<Vertex>& vertices, std::vector<uint16_t>& indices)
+{
+    ID3D12Resource* vertexBuffer = nullptr;
+    ID3D12Resource* vbUploader = nullptr;
+    ID3D12Resource* indexBuffer = nullptr;
+    ID3D12Resource* ibUploader = nullptr;
+
+    size_t vbSize = sizeof(Vertex) * vertices.size();
+
+    HRESULT result = renderer.CreateDefaultBuffer(vertexBuffer, vbUploader, (const void*)vertices.data(), vbSize);
 
     if (FAILED(result) || vbUploader == nullptr)
     {
@@ -58,59 +224,12 @@ bool GeometryLoader::LoadGeometryFromGLTF(Renderer& renderer, Model& model, tiny
             vbUploader = nullptr;
         }
 
-        return false;
+        return nullptr;
     }
 
-    std::uint16_t indices[] =
-    {
-        0, 1, 2,
-        0, 2, 3,
-
-        4, 6, 5,
-        4, 7, 6,
-
-        4, 5, 1,
-        4, 1, 0, 
-
-        3, 2, 6,
-        3, 6, 7,
-
-        1, 5, 6,
-        1, 6, 2,
-
-        4, 0, 3,
-        4, 3, 7
-    };
-
-    size_t ibSize = sizeof(uint16_t) * 36;
-
-    result = renderer.CreateDefaultBuffer(indexBuffer, ibUploader, (const void*)indices, ibSize);
-
-    if (FAILED(result) || ibUploader == nullptr)
-    {
-        Debug::LogSevere("Failed to create vertex buffer for gltf model.\n");
-
-        if (indexBuffer != nullptr)
-        {
-            indexBuffer->Release();
-            indexBuffer = nullptr;
-        }
-
-        if (ibUploader != nullptr)
-        {
-            ibUploader->Release();
-            ibUploader = nullptr;
-        }
-
-        return false;
-    }
-
-    CD3DX12_RESOURCE_BARRIER ibTransition = CD3DX12_RESOURCE_BARRIER::Transition(indexBuffer, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
-    renderer.GetCommandList()->ResourceBarrier(1, &ibTransition);
     CD3DX12_RESOURCE_BARRIER vbTransition = CD3DX12_RESOURCE_BARRIER::Transition(vertexBuffer, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
     renderer.GetCommandList()->ResourceBarrier(1, &vbTransition);
-    
-    ibUploader->SetName(L"IB Uploader");
+
     vbUploader->SetName(L"VB Uploader");
 
     D3D12_VERTEX_BUFFER_VIEW vbv{};
@@ -118,16 +237,61 @@ bool GeometryLoader::LoadGeometryFromGLTF(Renderer& renderer, Model& model, tiny
     vbv.SizeInBytes = vbSize;
     vbv.StrideInBytes = sizeof(Vertex);
 
+    size_t ibSize = sizeof(uint16_t) * indices.size();
+
     D3D12_INDEX_BUFFER_VIEW ibv{};
-    ibv.BufferLocation = indexBuffer->GetGPUVirtualAddress();
-    ibv.Format = DXGI_FORMAT::DXGI_FORMAT_R16_UINT;
-    ibv.SizeInBytes = ibSize;
+
+    bool usesIndexBuffer = ibSize > 0;
+
+    if (usesIndexBuffer)
+    {
+        result = renderer.CreateDefaultBuffer(indexBuffer, ibUploader, (const void*)indices.data(), ibSize);
+
+        if (FAILED(result) || ibUploader == nullptr)
+        {
+            Debug::LogSevere("Failed to create vertex buffer for gltf model.\n");
+
+            if (indexBuffer != nullptr)
+            {
+                indexBuffer->Release();
+                indexBuffer = nullptr;
+            }
+
+            if (ibUploader != nullptr)
+            {
+                ibUploader->Release();
+                ibUploader = nullptr;
+            }
+
+            return nullptr;
+        }
+
+        CD3DX12_RESOURCE_BARRIER ibTransition = CD3DX12_RESOURCE_BARRIER::Transition(indexBuffer, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+        renderer.GetCommandList()->ResourceBarrier(1, &ibTransition);
+
+        ibUploader->SetName(L"IB Uploader");
+
+        ibv.BufferLocation = indexBuffer->GetGPUVirtualAddress();
+        ibv.Format = DXGI_FORMAT::DXGI_FORMAT_R16_UINT;
+        ibv.SizeInBytes = ibSize;
+    }
+
+    if (vbSize <= 0 && ibSize <= 0)
+    {
+        Debug::LogSevere("Failed to create mesh with given data.\n");
+        return nullptr;
+    }
 
     Mesh* mesh = model.CreateNewMesh();
+    mesh->m_UsesIndexBuffer = usesIndexBuffer;
     mesh->m_VertexBuffer = vertexBuffer;
     mesh->m_VertexBufferView = vbv;
-    mesh->m_IndexBuffer = indexBuffer;
-    mesh->m_IndexBufferView = ibv;
+
+    if (mesh->m_UsesIndexBuffer)
+    {
+        mesh->m_IndexBuffer = indexBuffer;
+        mesh->m_IndexBufferView = ibv;
+    }
 
     if (vbUploader != nullptr)
     {
@@ -141,7 +305,7 @@ bool GeometryLoader::LoadGeometryFromGLTF(Renderer& renderer, Model& model, tiny
         ibUploader = nullptr;
     }
 
-    return true;
+    return mesh;
 }
 
 bool GeometryLoader::LoadTexturesFromGLTF(Renderer& renderer, Model& model, tinygltf::Model& gltfModel)

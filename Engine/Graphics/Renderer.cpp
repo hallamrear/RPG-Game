@@ -1086,7 +1086,7 @@ HRESULT Renderer::CreateGraphicsPipelines()
     pipelineStateDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
     pipelineStateDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
     pipelineStateDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
-    pipelineStateDesc.SampleMask = UINT_MAX;
+    pipelineStateDesc.SampleMask = UINT_MAX; 
     pipelineStateDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE::D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
     pipelineStateDesc.NodeMask = 0;
     pipelineStateDesc.NumRenderTargets = 1;
