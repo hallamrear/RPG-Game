@@ -9,17 +9,6 @@
 #include <Graphics/Geometry/Model.h>
 #include <Graphics/Renderer.h>
 
-static const std::map<std::string, size_t> c_AccessorTypeSizeMap =
-{
-    { "SCALAR", 1 },
-    { "VEC2", 2 },
-    { "VEC3", 3 },
-    { "VEC4", 4 },
-    { "MAT2", 4 },
-    { "MAT3", 9 },
-    { "MAT4", 16 },
-};
-
 bool GeometryLoader::CreateModelFromGLTF(Renderer& renderer, Model& model, tinygltf::Model& gltfModel)
 {
     bool loadedOk = true;
@@ -52,6 +41,11 @@ bool GeometryLoader::LoadGeometryFromGLTF(Renderer& renderer, Model& model, tiny
 
         for (size_t p = 0; p < primitiveCount; p++)
         {
+            vertices.clear();
+            indices.clear();
+            weights.clear();
+            joints.clear();
+
             tinygltf::Primitive& primitive = gltfMesh.primitives[p];
             
             switch (primitive.mode)
@@ -83,7 +77,23 @@ bool GeometryLoader::LoadGeometryFromGLTF(Renderer& renderer, Model& model, tiny
             }
 
             bool loadedVertices = GetVertexDataFromGLTFPrimitive(vertices, gltfModel, primitive);
-            bool loadedIndices = GetIndexDataFromGLTFPrimitive(indices, gltfModel, primitive);
+
+            if (loadedVertices == false)
+            {
+                Debug::LogSevere("Failed to load vertices from gltf model.\n");
+                return false;
+            }
+
+            bool loadedIndices = false;
+            if (usesIndexBuffer)
+            {
+                loadedIndices = GetIndexDataFromGLTFPrimitive(indices, gltfModel, primitive);
+            }
+
+            if (loadedIndices == false)
+            {
+                Debug::LogWarning("Loading a gltf model that does not seem to use indices.\n");
+            }
 
             Mesh* mesh = CreateMeshFromData(renderer, model, vertices, indices);
 
@@ -97,17 +107,82 @@ bool GeometryLoader::LoadGeometryFromGLTF(Renderer& renderer, Model& model, tiny
         }
 
         primitiveCount = 0;
-
     }
 
     return true;
 }
 
+bool GeometryLoader::GetMaterialFromGLTFPrimitive(Material& material, const tinygltf::Model& model, const tinygltf::Primitive& primitive)
+{
+    //TODO : Material renderering.
+    int materialIndex = primitive.material;
+    tinygltf::Material gltfMaterial = model.materials[materialIndex];
+    return true;
+}
+
 bool GeometryLoader::GetVertexDataFromGLTFPrimitive(std::vector<Vertex>& vertices, const tinygltf::Model& model, const tinygltf::Primitive& primitive)
 {
+    size_t primitiveAttributeCount = primitive.attributes.size();
 
+    if (primitiveAttributeCount <= 0)
+    {
+        Debug::LogSevere("No primitive attributes found for vertices.\n");
+        return false;
+    }
+    
+    //The count of the vertices is defined by the spec.
+    //All attribute accessors for each primitive MUST have the same count.
+    //So directly accessing the position attribute count should provide enough to fill the vector.
+    size_t positionAccessorIndex = primitive.attributes.at("POSITION");
+    size_t expectedVertexCount = model.accessors[positionAccessorIndex].count;
 
-    return false;
+    size_t originalVertexIndex = vertices.size();
+    vertices.resize(vertices.size() + expectedVertexCount);
+
+    std::vector<DirectX::XMFLOAT3> positions = std::vector<DirectX::XMFLOAT3>();
+    positions.resize(expectedVertexCount);
+    std::vector<DirectX::XMFLOAT3> normals = std::vector<DirectX::XMFLOAT3>();
+    normals.resize(expectedVertexCount);
+
+    // It'd be faster to access all the buffers at once.
+    for (auto& attribute : primitive.attributes)
+    {
+        std::string attributeName = attribute.first;
+        int attributeAccessorIndex = attribute.second;
+
+        const tinygltf::Accessor& attributeAccessor = model.accessors[attributeAccessorIndex];
+
+        if (attributeAccessor.count != expectedVertexCount)
+        {
+            Debug::LogMessage("Vertex attribute [%s] does not contain a matching number of elements to the others.\n", attributeName.c_str());
+            vertices.resize(vertices.size() - expectedVertexCount);
+            return false;
+        }
+
+        const tinygltf::BufferView& attributeBufferView = model.bufferViews[attributeAccessor.bufferView];
+        const tinygltf::Buffer& attributeBuffer = model.buffers[attributeBufferView.buffer];
+
+        void* dst = nullptr;
+        const void* src = attributeBuffer.data.data() + attributeBufferView.byteOffset + attributeAccessor.byteOffset;
+        size_t elementSize = tinygltf::GetComponentSizeInBytes(attributeAccessor.componentType) * tinygltf::GetNumComponentsInType(attributeAccessor.type);
+        size_t copySizeBytes = elementSize * expectedVertexCount;
+
+        DirectX::XMFLOAT3* value = nullptr;
+
+        if (attributeName == "POSITION")
+        {
+            dst = positions.data();
+            memcpy(dst, src, copySizeBytes);
+        }
+
+        if (attributeName == "NORMAL")
+        {
+            dst = normals.data();
+            memcpy(dst, src, copySizeBytes);
+        }
+    }
+
+    return true;
 }
 
 bool GeometryLoader::GetIndexDataFromGLTFPrimitive(std::vector<uint16_t>& indices, const tinygltf::Model& model, const tinygltf::Primitive& primitive)
@@ -168,7 +243,7 @@ bool GeometryLoader::GetIndexDataFromGLTFPrimitive(std::vector<uint16_t>& indice
     size_t expectedIndexCount = indicesAccessor.count;
 
     int indicesBufferViewIndex = indicesAccessor.bufferView;
-    int indicesByteOffset = indicesAccessor.byteOffset;
+    int indicesAccessorByteOffset = indicesAccessor.byteOffset;
 
     const tinygltf::BufferView& indicesBufferView = model.bufferViews[indicesBufferViewIndex];
     int indicesByteStride = indicesAccessor.ByteStride(indicesBufferView);
@@ -185,16 +260,22 @@ bool GeometryLoader::GetIndexDataFromGLTFPrimitive(std::vector<uint16_t>& indice
         return false;
     }
 
+    size_t elementSize = tinygltf::GetComponentSizeInBytes(indicesAccessor.componentType) * tinygltf::GetNumComponentsInType(indicesAccessor.type);
+
     int indicesBufferIndex = indicesBufferView.buffer;
     const tinygltf::Buffer& indicesBuffer = model.buffers[indicesBufferIndex];
+    size_t indicesBufferViewByteOffset = indicesBufferView.byteOffset;
 
-    size_t endIndex = indices.size();
+    size_t originalIndicesIndex = indices.size();
     indices.resize(indices.size() + expectedIndexCount);
 
-    size_t dataSize = sizeof(uint16_t) * expectedIndexCount;
-    memcpy(&indices[endIndex], indicesBuffer.data.data() + indicesByteOffset, dataSize);
+    size_t dataSize = elementSize * expectedIndexCount;
+    void* dst = &indices[originalIndicesIndex];
+    const void* src = indicesBuffer.data.data() + indicesBufferViewByteOffset + indicesAccessorByteOffset;
 
-    return false;
+    memcpy(dst, src, dataSize);
+
+    return true;
 }
 
 Mesh* GeometryLoader::CreateMeshFromData(Renderer& renderer, Model& model, std::vector<Vertex>& vertices, std::vector<uint16_t>& indices)
@@ -286,11 +367,13 @@ Mesh* GeometryLoader::CreateMeshFromData(Renderer& renderer, Model& model, std::
     mesh->m_UsesIndexBuffer = usesIndexBuffer;
     mesh->m_VertexBuffer = vertexBuffer;
     mesh->m_VertexBufferView = vbv;
+    mesh->m_VertexCount = vertices.size();
 
     if (mesh->m_UsesIndexBuffer)
     {
         mesh->m_IndexBuffer = indexBuffer;
         mesh->m_IndexBufferView = ibv;
+        mesh->m_IndexCount = indices.size();
     }
 
     if (vbUploader != nullptr)

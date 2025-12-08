@@ -112,11 +112,15 @@ void GameInstance::Render()
 
 	m_Renderer.ClearFrame();
 
-	for (size_t i = 0; i < 6; i++)
+	/*for (size_t i = 0; i < 6; i++)
 	{
 		m_Renderer.UpdateConstantBuffer(cb[i], i);
 		model.TestRender(m_Renderer);
-	}
+	}*/
+
+	DirectX::XMStoreFloat4x4(&cb[0].World, DirectX::XMMatrixTranspose(DirectX::XMMatrixRotationRollPitchYaw(timer / 2.0f, timer, 0.0f) * DirectX::XMMatrixTranslation(0.0f, 0.0f, 1000.0f)));
+	m_Renderer.UpdateConstantBuffer(cb[0], 0);
+	model.TestRender(m_Renderer);
 
 	m_Renderer.PresentFrame();
 }
