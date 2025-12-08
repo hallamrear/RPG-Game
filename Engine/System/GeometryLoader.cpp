@@ -4,6 +4,7 @@
 #include <System/FileLoadingIncludes.h>
 #include <System/TextureLoader.h>
 #include <Graphics/Texturing/Texture.h>
+#include <Graphics/Vertex.h>
 #include <Graphics/Geometry/Mesh.h>
 #include <Graphics/Geometry/Model.h>
 #include <Graphics/Renderer.h>
@@ -18,8 +19,6 @@ bool GeometryLoader::CreateModelFromGLTF(Renderer& renderer, Model& model, tinyg
     return loadedOk;
 }
 
-#include <Graphics/ColourOnlyVertex.h>
-
 bool GeometryLoader::LoadGeometryFromGLTF(Renderer& renderer, Model& model, tinygltf::Model& gltfModel)
 {
     ID3D12Resource* vbUploader = nullptr;
@@ -27,19 +26,19 @@ bool GeometryLoader::LoadGeometryFromGLTF(Renderer& renderer, Model& model, tiny
     ID3D12Resource* ibUploader = nullptr;
     ID3D12Resource* indexBuffer = nullptr;
 
-    ColourOnlyVertex vertices[] =
+    Vertex vertices[] =
     {
-        { DirectX::XMFLOAT3(-1.0f, -1.0f, -1.0f), DirectX::XMFLOAT4(1.0f, 0.0f, 1.0f, 1.0f) },
-        { DirectX::XMFLOAT3(-1.0f, +1.0f, -1.0f), DirectX::XMFLOAT4(0.0f, 1.0f, 1.0f, 1.0f) },
-        { DirectX::XMFLOAT3(+1.0f, +1.0f, -1.0f), DirectX::XMFLOAT4(1.0f, 1.0f, 0.0f, 1.0f) },
-        { DirectX::XMFLOAT3(+1.0f, -1.0f, -1.0f), DirectX::XMFLOAT4(0.0f, 1.0f, 1.0f, 1.0f) },
-        { DirectX::XMFLOAT3(-1.0f, -1.0f, +1.0f), DirectX::XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f) },
-        { DirectX::XMFLOAT3(-1.0f, +1.0f, +1.0f), DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f) },
-        { DirectX::XMFLOAT3(+1.0f, +1.0f, +1.0f), DirectX::XMFLOAT4(1.0f, 0.0f, 1.0f, 1.0f) },
-        { DirectX::XMFLOAT3(+1.0f, -1.0f, +1.0f), DirectX::XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f) }
+        { DirectX::XMFLOAT3(-1.0f, -1.0f, -1.0f), DirectX::XMFLOAT3(1.0f, 0.0f, 1.0f), DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f), DirectX::XMFLOAT2(0.0f, 0.0f) },
+        { DirectX::XMFLOAT3(-1.0f, +1.0f, -1.0f), DirectX::XMFLOAT3(0.0f, 1.0f, 1.0f), DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f), DirectX::XMFLOAT2(0.0f, 1.0f) },
+        { DirectX::XMFLOAT3(+1.0f, +1.0f, -1.0f), DirectX::XMFLOAT3(1.0f, 1.0f, 0.0f), DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f), DirectX::XMFLOAT2(1.0f, 0.0f) },
+        { DirectX::XMFLOAT3(+1.0f, -1.0f, -1.0f), DirectX::XMFLOAT3(0.0f, 1.0f, 1.0f), DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f), DirectX::XMFLOAT2(1.0f, 1.0f) },
+        { DirectX::XMFLOAT3(-1.0f, -1.0f, +1.0f), DirectX::XMFLOAT3(0.0f, 1.0f, 0.0f), DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f), DirectX::XMFLOAT2(0.0f, 0.0f) },
+        { DirectX::XMFLOAT3(-1.0f, +1.0f, +1.0f), DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f), DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f), DirectX::XMFLOAT2(0.0f, 1.0f) },
+        { DirectX::XMFLOAT3(+1.0f, +1.0f, +1.0f), DirectX::XMFLOAT3(1.0f, 0.0f, 1.0f), DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f), DirectX::XMFLOAT2(1.0f, 0.0f) },
+        { DirectX::XMFLOAT3(+1.0f, -1.0f, +1.0f), DirectX::XMFLOAT3(0.0f, 1.0f, 0.0f), DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f), DirectX::XMFLOAT2(1.0f, 1.0f) }
     };
 
-    size_t vbSize = sizeof(ColourOnlyVertex) * 8;
+    size_t vbSize = sizeof(Vertex) * 8;
 
     HRESULT result = renderer.CreateDefaultBuffer(vertexBuffer, vbUploader, (const void*)vertices, vbSize);
 
@@ -117,7 +116,7 @@ bool GeometryLoader::LoadGeometryFromGLTF(Renderer& renderer, Model& model, tiny
     D3D12_VERTEX_BUFFER_VIEW vbv{};
     vbv.BufferLocation = vertexBuffer->GetGPUVirtualAddress();
     vbv.SizeInBytes = vbSize;
-    vbv.StrideInBytes = sizeof(ColourOnlyVertex);
+    vbv.StrideInBytes = sizeof(Vertex);
 
     D3D12_INDEX_BUFFER_VIEW ibv{};
     ibv.BufferLocation = indexBuffer->GetGPUVirtualAddress();

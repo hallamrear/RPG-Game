@@ -16,6 +16,7 @@ const DXGI_FORMAT Renderer::m_DepthStencilBufferFormat = DXGI_FORMAT::DXGI_FORMA
 
 Renderer::Renderer()
 {
+    m_SRVHeap = nullptr;
     m_CBVHeaps = nullptr;
     m_ClearColour = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
     m_IsInitialised = false;
@@ -59,6 +60,9 @@ Renderer::Renderer()
         m_ConstantBufferAddressArray[i] = nullptr;
         m_CBVHeaps[i] = nullptr;
     }
+
+    DirectX::XMStoreFloat4x4(&m_ViewMatrix, DirectX::XMMatrixIdentity());
+    DirectX::XMStoreFloat4x4(&m_ProjectionMatrix, DirectX::XMMatrixIdentity());
 }
 
 Renderer::~Renderer()
@@ -250,6 +254,16 @@ const int& Renderer::GetWindowWidth() const
 const int& Renderer::GetWindowHeight() const
 {
     return m_WindowHeight;
+}
+
+const DirectX::XMFLOAT4X4& Renderer::GetProjectionMatrix() const
+{
+    return m_ProjectionMatrix;
+}
+
+const DirectX::XMFLOAT4X4& Renderer::GetViewMatrix() const
+{
+    return m_ViewMatrix;
 }
 
 HRESULT Renderer::CreateDeviceAndFactory()
@@ -701,6 +715,9 @@ HRESULT Renderer::SetupInitialViewportAndScissorRect()
     m_ScissorRect.bottom = m_WindowHeight;
     m_CommandList->RSSetScissorRects(1, &m_ScissorRect);
 
+    DirectX::XMStoreFloat4x4(&m_ViewMatrix, DirectX::XMMatrixTranspose(DirectX::XMMatrixLookAtLH({ 0.0f, 1.0f, -5.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f })));
+    DirectX::XMStoreFloat4x4(&m_ProjectionMatrix, DirectX::XMMatrixTranspose(DirectX::XMMatrixPerspectiveFovLH(70.0f, 1920.0f / 1080.0f, 1.0f, 1000.0f)));
+
     return S_OK;
 }
 
@@ -1079,7 +1096,7 @@ HRESULT Renderer::CreateGraphicsPipelines()
     pipelineStateDesc.SampleDesc.Quality = 0;
 
     HRESULT result = E_POINTER;
-    /*if (m_DefaultVertexShaderBlob != nullptr && m_DefaultPixelShaderBlob != nullptr)
+    if (m_DefaultVertexShaderBlob != nullptr && m_DefaultPixelShaderBlob != nullptr)
     {
         pipelineStateDesc.InputLayout.NumElements = m_DefaultInputLayout.size();
         pipelineStateDesc.InputLayout.pInputElementDescs = m_DefaultInputLayout.data();
@@ -1094,7 +1111,7 @@ HRESULT Renderer::CreateGraphicsPipelines()
     {
         Debug::LogSevere("Failed to create default graphics pipeline state.\n");
         return result;
-    }*/
+    }
 
     result = E_POINTER;
     if (m_ColourOnlyVertexShaderBlob != nullptr && m_ColourOnlyPixelShaderBlob != nullptr)
@@ -1105,8 +1122,7 @@ HRESULT Renderer::CreateGraphicsPipelines()
         pipelineStateDesc.VS.BytecodeLength = m_ColourOnlyVertexShaderBlob->GetBufferSize();
         pipelineStateDesc.PS.pShaderBytecode = m_ColourOnlyPixelShaderBlob->GetBufferPointer();
         pipelineStateDesc.PS.BytecodeLength = m_ColourOnlyPixelShaderBlob->GetBufferSize();
-        //result = m_Device->CreateGraphicsPipelineState(&pipelineStateDesc, IID_PPV_ARGS(&m_ColourOnlyPipeline));
-        result = m_Device->CreateGraphicsPipelineState(&pipelineStateDesc, IID_PPV_ARGS(&m_DefaultPipeline));
+        result = m_Device->CreateGraphicsPipelineState(&pipelineStateDesc, IID_PPV_ARGS(&m_ColourOnlyPipeline));
     }
 
     if (FAILED(result))

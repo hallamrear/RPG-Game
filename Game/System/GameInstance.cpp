@@ -54,7 +54,7 @@ bool GameInstance::Initialise(const HWND& windowHandle)
 	DirectX::XMStoreFloat4x4(&m_ConstantBuffer->View, DirectX::XMMatrixTranspose(DirectX::XMMatrixLookAtLH({ 0.0f, 1.0f, -5.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f })));
 	DirectX::XMStoreFloat4x4(&m_ConstantBuffer->Projection, DirectX::XMMatrixTranspose(DirectX::XMMatrixPerspectiveFovLH(70.0f, 1920.0f / 1080.0f, 1.0f, 1000.0f)));
 
-	//Setting to closed as the first refernce to the command list will open it.
+	//Setting to closed as the first reference to the command list will open it.
 	if (m_Renderer.GetCommandList())
 	{
 		m_Renderer.GetCommandList()->Close();
@@ -88,20 +88,18 @@ void GameInstance::ProcessInput()
 
 static float timer = 0.0f;
 
-ConstantBuffer cb[3];
+ConstantBuffer cb[MAX_NUM_ENTITIES];
 
 void GameInstance::Update(const float& deltaTime)
 {
 	if (!IsRunning())
 		return;
 
-	//DirectX::XMStoreFloat4x4(&m_ConstantBuffer->World, DirectX::XMMatrixTranspose(DirectX::XMMatrixRotationRollPitchYaw(timer / 2.0f, timer, 0.0f)));
-	//m_Renderer.UpdateConstantBuffer(*m_ConstantBuffer);
-	for (size_t i = 0; i < 3; i++)
+	for (int i = 0; i < 6; i++)
 	{
 		DirectX::XMStoreFloat4x4(&cb[i].World, DirectX::XMMatrixTranspose(DirectX::XMMatrixRotationRollPitchYaw(timer / 2.0f + (33.0f * i), timer + (45 * i), 0.0f) * DirectX::XMMatrixTranslation(-5.0f + (5.0f * i), 0.0f, 0.0f)));
-		DirectX::XMStoreFloat4x4(&cb[i].View, DirectX::XMMatrixTranspose(DirectX::XMMatrixLookAtLH({ 0.0f, 1.0f, -5.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f })));
-		DirectX::XMStoreFloat4x4(&cb[i].Projection, DirectX::XMMatrixTranspose(DirectX::XMMatrixPerspectiveFovLH(70.0f, 1920.0f / 1080.0f, 1.0f, 1000.0f)));
+		DirectX::XMStoreFloat4x4(&cb[i].View, DirectX::XMLoadFloat4x4(&m_Renderer.GetViewMatrix()));
+		DirectX::XMStoreFloat4x4(&cb[i].Projection, DirectX::XMLoadFloat4x4(&m_Renderer.GetProjectionMatrix()));
 	}
 
 	timer += deltaTime;
@@ -114,7 +112,7 @@ void GameInstance::Render()
 
 	m_Renderer.ClearFrame();
 
-	for (size_t i = 0; i < 3; i++)
+	for (size_t i = 0; i < 6; i++)
 	{
 		m_Renderer.UpdateConstantBuffer(cb[i], i);
 		model.TestRender(m_Renderer);

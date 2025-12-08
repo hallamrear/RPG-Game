@@ -97,6 +97,9 @@ private:
 	HRESULT CreateGraphicsPipelines();
 	void DestroyGraphicsPipelines();
 
+	DirectX::XMFLOAT4X4 m_ViewMatrix;
+	DirectX::XMFLOAT4X4 m_ProjectionMatrix;
+
 protected:
 
 public:
@@ -129,6 +132,9 @@ public:
 
 	const int& GetWindowWidth() const;
 	const int& GetWindowHeight() const;
+
+	const DirectX::XMFLOAT4X4& GetProjectionMatrix() const;
+	const DirectX::XMFLOAT4X4& GetViewMatrix() const;
 
 	void ClearFrame();
 	HRESULT FlushCommandQueue();

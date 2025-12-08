@@ -84,26 +84,6 @@ bool TextureLoader::LoadFromData(Renderer& renderer, Texture& texture, const voi
 
 		UpdateSubresources(commandList, texture.m_Resource, textureUploadHeap, 0, 0, 1, &textureData);
 
-		{
-			////Mapping memory
-			//BYTE* mappedData = nullptr;
-			//result = texture.m_Resource->Map(0, nullptr, reinterpret_cast<void**>(&mappedData));
-			//if (FAILED(result))
-			//{
-			//	Debug::LogSevere("Failed to map texture resources address for data copy.\n");
-			//	return SUCCEEDED(result);
-			//}
-
-			//memcpy(&mappedData, &pixels, bytes);
-
-			//if (texture.m_Resource != nullptr)
-			//{
-			//	texture.m_Resource->Unmap(0, nullptr);
-			//}
-
-			//mappedData = nullptr; 
-		}
-
 		CD3DX12_RESOURCE_BARRIER copyToSRVTransition = CD3DX12_RESOURCE_BARRIER::Transition(texture.m_Resource, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		commandList->ResourceBarrier(1, &copyToSRVTransition);
 	}
