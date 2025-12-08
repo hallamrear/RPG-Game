@@ -203,6 +203,14 @@
       <Project>{52a6c660-5ed6-46e2-ad15-42100ae3ff17}</Project>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\Test_Model.bin">
+      <DeploymentContent>true</DeploymentContent>
+    </None>
+    <None Include="Resources\Test_Model.gltf">
+      <DeploymentContent>true</DeploymentContent>
+    </None>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
