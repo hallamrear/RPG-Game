@@ -47,6 +47,7 @@ private:
 
 	struct ID3D12DescriptorHeap* m_RTVHeap;
 	struct ID3D12DescriptorHeap* m_DSVHeap;
+	struct ID3D12DescriptorHeap* m_SRVHeap;
 	HRESULT CreateDescriptorHeaps();
 	void DestroyDescriptorHeaps();
 	struct D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentBackbufferView() const;
@@ -114,14 +115,14 @@ public:
 	const ID3D12Device* GetDevice() const;
 	ID3D12Device* GetDevice();
 
-	struct D3D12_CPU_DESCRIPTOR_HANDLE GetCBVSRVDescriptorHeapStart() const;
+	struct D3D12_CPU_DESCRIPTOR_HANDLE GetSRVDescriptorHeapStart() const;
 
 	HRESULT CreateDefaultBuffer(ID3D12Resource*& defaultBuffer, ID3D12Resource*& gpuUploadBuffer, const void* data, const size_t& sizeBytes);
 
 	const DirectX::XMFLOAT4& GetClearColour() const;
 	void SetClearColour(const DirectX::XMFLOAT4& newColour);
 
-	HRESULT UpdateConstantBuffer(ConstantBuffer& cb);
+	HRESULT UpdateConstantBuffer(ConstantBuffer& cb, const int& index);
 
 	static bool Initialise(Renderer& renderer, const HWND& windowHandle);
 	static void Shutdown(Renderer& renderer);

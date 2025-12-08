@@ -8,6 +8,10 @@ cbuffer PerObjectBuffer : register(b0)
 };
 
 Texture2D DiffuseTexture : register(t0);
+Texture2D spareTex_1 : register(t1);
+Texture2D spareTex_2 : register(t2);
+Texture2D spareTex_3 : register(t3);
+Texture2D spareTex_4 : register(t4);
 
 struct VS_STANDARD_VERTEX_INPUT
 {

@@ -523,6 +523,19 @@ HRESULT Renderer::CreateDescriptorHeaps()
         return result;
     }
 
+    D3D12_DESCRIPTOR_HEAP_DESC srvDescriptorHeapDesc{};
+    srvDescriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+    srvDescriptorHeapDesc.NumDescriptors = 1;
+    srvDescriptorHeapDesc.NodeMask = 0;
+    srvDescriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAGS::D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+    m_Device->CreateDescriptorHeap(&srvDescriptorHeapDesc, IID_PPV_ARGS(&m_SRVHeap));
+
+    if (FAILED(result))
+    {
+        Debug::LogSevere("Failed to create SRV descriptor heap.\n");
+        return result;
+    }
+
     return result;
 }
 
@@ -727,13 +740,10 @@ HRESULT Renderer::FlushCommandQueue()
 
 HRESULT Renderer::CreateConstantBuffers()
 {
-    CD3DX12_RESOURCE_DESC resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(1024 * 64);
+    CD3DX12_RESOURCE_DESC resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(ConstantBuffer) * MAX_NUM_ENTITIES);
     CD3DX12_HEAP_PROPERTIES heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
 
-    ConstantBuffer a = {};
-    DirectX::XMStoreFloat4x4(&a.Padding, DirectX::XMMatrixTranslation(10.0f, 0.0f, 0.0f));
-    ConstantBuffer b = {};
-    DirectX::XMStoreFloat4x4(&b.Padding, DirectX::XMMatrixTranslation(69.0f, 69.0f, 69.0f));
+    ConstantBuffer empty = {};
 
     HRESULT result = E_FAIL;
 
@@ -774,12 +784,7 @@ HRESULT Renderer::CreateConstantBuffers()
             return result;
         }
 
-        if (i == 0)
-            memcpy(m_ConstantBufferAddressArray[i], &a, sizeof(ConstantBuffer));
-        else
-            memcpy(m_ConstantBufferAddressArray[i], &b, sizeof(ConstantBuffer));
-
-        //memcpy(m_ConstantBufferAddressArray[i], &empty, sizeof(ConstantBuffer));
+        memcpy(m_ConstantBufferAddressArray[i], &empty, sizeof(ConstantBuffer));
     }
 
     return S_OK;
@@ -845,22 +850,54 @@ void Renderer::DestroyConstantBufferHeap()
 
 HRESULT Renderer::CreateRootSignatureAndDescriptorTable()
 {
-    CD3DX12_ROOT_PARAMETER slotRootParameter[1]{};
+    D3D12_ROOT_PARAMETER slotRootParameters[2]{};
 
-    //Create a descriptor table for cbv
-    CD3DX12_DESCRIPTOR_RANGE cbvTable{};
-    cbvTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
-    cbvTable.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-    CD3DX12_DESCRIPTOR_RANGE srvTable{};
-    srvTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 5, 0);
+    //CBV
+    D3D12_ROOT_DESCRIPTOR cbvDescriptor{};
+    cbvDescriptor.RegisterSpace = 0;
+    cbvDescriptor.ShaderRegister = 0;
+    slotRootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    slotRootParameters[0].Descriptor = cbvDescriptor;
+    slotRootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY::D3D12_SHADER_VISIBILITY_ALL;
 
-    CD3DX12_DESCRIPTOR_RANGE ranges[] =
-    {
-        cbvTable, srvTable
-    };
-    slotRootParameter->InitAsDescriptorTable(_countof(ranges), ranges);
+    //SRV Table
+    D3D12_DESCRIPTOR_RANGE descriptorTableRange[1]{};
+    descriptorTableRange[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    descriptorTableRange[0].NumDescriptors = 5;
+    descriptorTableRange[0].BaseShaderRegister = 0;
+    descriptorTableRange[0].RegisterSpace = 0;
+    descriptorTableRange[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-    CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc(1, slotRootParameter, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+    D3D12_ROOT_DESCRIPTOR_TABLE descriptorTable{};
+    descriptorTable.NumDescriptorRanges = _countof(descriptorTableRange);
+    descriptorTable.pDescriptorRanges = &descriptorTableRange[0];
+
+    slotRootParameters[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    slotRootParameters[1].DescriptorTable = descriptorTable;
+
+    D3D12_STATIC_SAMPLER_DESC staticSamplerDesc[1]{};
+    staticSamplerDesc[0].Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
+    staticSamplerDesc[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+    staticSamplerDesc[0].AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+    staticSamplerDesc[0].AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+    staticSamplerDesc[0].MipLODBias = 0;
+    staticSamplerDesc[0].MaxAnisotropy = 0;
+    staticSamplerDesc[0].ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
+    staticSamplerDesc[0].BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
+    staticSamplerDesc[0].MinLOD = 0.0f;
+    staticSamplerDesc[0].MaxLOD = D3D12_FLOAT32_MAX;
+    staticSamplerDesc[0].ShaderRegister = 0;
+    staticSamplerDesc[0].RegisterSpace = 0;
+    staticSamplerDesc[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+    CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc{};
+    rootSignatureDesc.Init(
+        _countof(slotRootParameters), slotRootParameters,
+        _countof(staticSamplerDesc), &staticSamplerDesc[0],
+        D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+        D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+        D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+        D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS);
 
     ID3DBlob* rootSigBlob = nullptr;
     ID3DBlob* errorBlob = nullptr;
@@ -1096,10 +1133,10 @@ void Renderer::DestroyGraphicsPipelines()
     }
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE Renderer::GetCBVSRVDescriptorHeapStart() const
+D3D12_CPU_DESCRIPTOR_HANDLE Renderer::GetSRVDescriptorHeapStart() const
 {
-    CUSTOM_ASSERT((m_CBVHeaps != nullptr));
-    return m_CBVHeaps[m_CurrentBackbufferIndex]->GetCPUDescriptorHandleForHeapStart();
+    CUSTOM_ASSERT((m_SRVHeap != nullptr));
+    return m_SRVHeap->GetCPUDescriptorHandleForHeapStart();
 }
 
 HRESULT Renderer::CreateDefaultBuffer(ID3D12Resource*& defaultBuffer, ID3D12Resource*& gpuUploadBuffer, const void* data, const size_t& sizeBytes)
@@ -1208,13 +1245,14 @@ void Renderer::SetClearColour(const DirectX::XMFLOAT4& newColour)
     m_ClearColour = newColour;
 }
 
-HRESULT Renderer::UpdateConstantBuffer(ConstantBuffer& cb)
+HRESULT Renderer::UpdateConstantBuffer(ConstantBuffer& cb, const int& index)
 {
     CUSTOM_ASSERT(m_IsInitialised);
 
     if (m_ConstantBufferAddressArray[m_CurrentBackbufferIndex] != nullptr)
     {
-        memcpy(m_ConstantBufferAddressArray[m_CurrentBackbufferIndex], &cb, sizeof(ConstantBuffer));
+        m_CommandList->SetGraphicsRootConstantBufferView(0, m_ConstantBufferGPUUploaderArray[m_CurrentBackbufferIndex]->GetGPUVirtualAddress() + (index * sizeof(ConstantBuffer)));
+        memcpy(m_ConstantBufferAddressArray[m_CurrentBackbufferIndex] + (index * sizeof(ConstantBuffer)), &cb, sizeof(ConstantBuffer));
     }
 
     return S_OK;
@@ -1256,11 +1294,11 @@ void Renderer::ClearFrame()
 
     m_CommandList->SetGraphicsRootSignature(m_RootSignature);
 
-    ID3D12DescriptorHeap* heaps[] = { m_CBVHeaps[m_CurrentBackbufferIndex] };
+    ID3D12DescriptorHeap* heaps[] = { m_SRVHeap };
     m_CommandList->SetDescriptorHeaps(_countof(heaps), heaps);
 
-    CD3DX12_GPU_DESCRIPTOR_HANDLE cbv(m_CBVHeaps[m_CurrentBackbufferIndex]->GetGPUDescriptorHandleForHeapStart());
-    m_CommandList->SetGraphicsRootDescriptorTable(0, cbv);
+    CD3DX12_GPU_DESCRIPTOR_HANDLE srvHeap(m_SRVHeap->GetGPUDescriptorHandleForHeapStart());
+    m_CommandList->SetGraphicsRootDescriptorTable(1, srvHeap);
 
     m_CommandList->SetPipelineState(m_DefaultPipeline);
 }

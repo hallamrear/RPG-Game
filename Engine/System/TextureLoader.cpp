@@ -109,7 +109,7 @@ bool TextureLoader::LoadFromData(Renderer& renderer, Texture& texture, const voi
 	}
 	 
 	CD3DX12_SHADER_RESOURCE_VIEW_DESC srvDesc = CD3DX12_SHADER_RESOURCE_VIEW_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM);
-	device->CreateShaderResourceView(texture.m_Resource, &srvDesc, renderer.GetCBVSRVDescriptorHeapStart());
+	device->CreateShaderResourceView(texture.m_Resource, &srvDesc, renderer.GetSRVDescriptorHeapStart());
 
 	if (texture.m_Resource != nullptr)
 	{
