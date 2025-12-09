@@ -134,7 +134,9 @@ public:
 	const int& GetWindowHeight() const;
 
 	const DirectX::XMFLOAT4X4& GetProjectionMatrix() const;
+	DirectX::XMFLOAT4X4& GetProjectionMatrix();
 	const DirectX::XMFLOAT4X4& GetViewMatrix() const;
+	DirectX::XMFLOAT4X4& GetViewMatrix();
 
 	void ClearFrame();
 	HRESULT FlushCommandQueue();

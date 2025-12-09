@@ -89,20 +89,33 @@ void GameInstance::ProcessInput()
 static float timer = 0.0f;
 
 ConstantBuffer cb[MAX_NUM_ENTITIES];
+DirectX::XMFLOAT3 modelPos;
 
 void GameInstance::Update(const float& deltaTime)
 {
 	if (!IsRunning())
 		return;
 
+	const float radius = 300.0f;
+	DirectX::XMFLOAT3 pos = DirectX::XMFLOAT3(sinf(timer) * radius, 10.0f, cosf(timer) * radius);
+	DirectX::XMFLOAT3 zero = DirectX::XMFLOAT3(0.0f, pos.y, 0.0f);
+	modelPos = zero;
+	DirectX::XMFLOAT3 up = DirectX::XMFLOAT3(0.0f, 1.0f, 0.0f);
+
+	timer += deltaTime;
+
+	DirectX::XMStoreFloat4x4(&m_Renderer.GetViewMatrix(), DirectX::XMMatrixTranspose(
+		DirectX::XMMatrixLookAtLH(
+			DirectX::XMLoadFloat3(&pos),
+			DirectX::XMLoadFloat3(&zero),
+			DirectX::XMLoadFloat3(&up))));
+
 	for (int i = 0; i < 6; i++)
 	{
-		DirectX::XMStoreFloat4x4(&cb[i].World, DirectX::XMMatrixTranspose(DirectX::XMMatrixRotationRollPitchYaw(timer / 2.0f + (33.0f * i), timer + (45 * i), 0.0f) * DirectX::XMMatrixTranslation(-5.0f + (5.0f * i), 0.0f, 0.0f)));
+		DirectX::XMStoreFloat4x4(&cb[i].World, DirectX::XMMatrixTranspose(DirectX::XMMatrixTranslation(modelPos.x, modelPos.y - 100.0f, modelPos.z) * DirectX::XMMatrixRotationRollPitchYaw(0.0f, timer * 100.0f, 0.0f)));
 		DirectX::XMStoreFloat4x4(&cb[i].View, DirectX::XMLoadFloat4x4(&m_Renderer.GetViewMatrix()));
 		DirectX::XMStoreFloat4x4(&cb[i].Projection, DirectX::XMLoadFloat4x4(&m_Renderer.GetProjectionMatrix()));
 	}
-
-	timer += deltaTime;
 }
 
 void GameInstance::Render()
@@ -112,13 +125,6 @@ void GameInstance::Render()
 
 	m_Renderer.ClearFrame();
 
-	/*for (size_t i = 0; i < 6; i++)
-	{
-		m_Renderer.UpdateConstantBuffer(cb[i], i);
-		model.TestRender(m_Renderer);
-	}*/
-
-	DirectX::XMStoreFloat4x4(&cb[0].World, DirectX::XMMatrixTranspose(DirectX::XMMatrixTranslation(0.0f, 0.0f, 10.0f) * DirectX::XMMatrixRotationRollPitchYaw(timer / 2.0f, timer, 0.0f)));
 	m_Renderer.UpdateConstantBuffer(cb[0], 0);
 	model.TestRender(m_Renderer);
 

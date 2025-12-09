@@ -31,6 +31,9 @@ bool GeometryLoader::LoadGeometryFromGLTF(Renderer& renderer, Model& model, tiny
     std::vector<uint16_t> indices = std::vector<uint16_t>();
     std::vector<uint16_t> weights = std::vector<uint16_t>();
     std::vector<uint16_t> joints = std::vector<uint16_t>();
+    DirectX::XMFLOAT3 max = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
+    DirectX::XMFLOAT3 min = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
+
 
     for (size_t i = 0; i < meshCount; i++)
     {
@@ -76,9 +79,6 @@ bool GeometryLoader::LoadGeometryFromGLTF(Renderer& renderer, Model& model, tiny
                 return false;
             }
 
-            DirectX::XMFLOAT3 max = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
-            DirectX::XMFLOAT3 min = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
-
             bool loadedVertices = GetVertexDataFromGLTFPrimitive(vertices, gltfModel, primitive, max, min);
 
             if (loadedVertices == false)
@@ -97,20 +97,23 @@ bool GeometryLoader::LoadGeometryFromGLTF(Renderer& renderer, Model& model, tiny
             {
                 Debug::LogWarning("Loading a gltf model that does not seem to use indices.\n");
             }
-
-            Mesh* mesh = CreateMeshFromData(renderer, model, vertices, indices);
-
-            if (mesh == nullptr)
-            {
-                Debug::LogSevere("Failed to load mesh data from gltf.\n");
-                return false;
-            }
-
-            mesh->m_TopologyType = foundTopology;
         }
 
+        Mesh* mesh = CreateMeshFromData(renderer, model, vertices, indices);
+
+        if (mesh == nullptr)
+        {
+            Debug::LogSevere("Failed to load mesh data from gltf.\n");
+            return false;
+        }
+
+        mesh->m_TopologyType = foundTopology;
+        mesh->m_MaxPosition = max;
+        mesh->m_MinPosition = min;
 
         primitiveCount = 0;
+        max = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
+        min = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
     }
 
     return true;
@@ -122,6 +125,26 @@ bool GeometryLoader::GetMaterialFromGLTFPrimitive(Material& material, const tiny
     int materialIndex = primitive.material;
     tinygltf::Material gltfMaterial = model.materials[materialIndex];
     return true;
+}
+
+bool GeometryLoader::GetElementDataFromGLTFBuffer(const std::string& attributeName, byte*& data, tinygltf::Model& model, tinygltf::Primitive& primitive)
+{
+    bool hasAttribute = (primitive.attributes.find(attributeName) != primitive.attributes.end());
+
+    if (hasAttribute)
+    {
+        const int& attributeAccessorIndex = primitive.attributes.at(attributeName);
+        tinygltf::Accessor& attributeAccessor = model.accessors[attributeAccessorIndex];
+        tinygltf::BufferView& attributeBufferView = model.bufferViews[attributeAccessor.bufferView];
+        tinygltf::Buffer& attributeBuffer = model.buffers[attributeBufferView.buffer];
+        size_t elementSize = tinygltf::GetComponentSizeInBytes(attributeAccessor.componentType) * tinygltf::GetNumComponentsInType(attributeAccessor.type);
+        data = new byte[elementSize * attributeAccessor.count];
+        memset(data, 0, elementSize * attributeAccessor.count * sizeof(byte));
+        void* src = (attributeBuffer.data.data() + attributeBufferView.byteOffset + attributeAccessor.byteOffset);
+        memcpy_s(data, elementSize * attributeAccessor.count, src, attributeBufferView.byteLength);
+    }
+
+    return hasAttribute;
 }
 
 bool GeometryLoader::GetVertexDataFromGLTFPrimitive(std::vector<Vertex>& vertices, tinygltf::Model& model, tinygltf::Primitive& primitive, DirectX::XMFLOAT3& maxPosition, DirectX::XMFLOAT3& minPosition)
@@ -137,90 +160,109 @@ bool GeometryLoader::GetVertexDataFromGLTFPrimitive(std::vector<Vertex>& vertice
     //The count of the vertices is defined by the spec.
     //All attribute accessors for each primitive MUST have the same count.
     //So directly accessing the position attribute count should provide enough to fill the vector.
-    int positionAccessorIndex = primitive.attributes.at("POSITION");
-    size_t expectedVertexCount = model.accessors[positionAccessorIndex].count;
+  
+    byte* positionData = nullptr;
+    byte* normalData = nullptr;
+    byte* tangentData = nullptr;
+    byte* texCoordData = nullptr;
+    byte* jointData = nullptr;
+    byte* weightData = nullptr;
+
+    bool hasPositions = GetElementDataFromGLTFBuffer("POSITION", positionData, model, primitive);
+    bool hasNormals = GetElementDataFromGLTFBuffer("NORMAL", normalData, model, primitive);
+    bool hasTangents = GetElementDataFromGLTFBuffer("TANGENT", tangentData, model, primitive);
+    bool hasTexCoords = GetElementDataFromGLTFBuffer("TEXCOORD_0", texCoordData, model, primitive);
+    bool hasJoints = GetElementDataFromGLTFBuffer("JOINTS_0", jointData, model, primitive);
+    bool hasWeights = GetElementDataFromGLTFBuffer("WEIGHTS_0", weightData, model, primitive);
+
+    if (hasPositions == false)
+    {
+        Debug::LogSevere("Model does not contain any position data.\n");
+        return false;
+    }
 
     size_t originalVertexIndex = vertices.size();
-    vertices.resize(vertices.size() + expectedVertexCount);
+    size_t expectedVertexCount = model.accessors[primitive.attributes.at("POSITION")].count;
+    vertices.resize(originalVertexIndex + expectedVertexCount);
 
-    std::vector<DirectX::XMFLOAT3> positions = std::vector<DirectX::XMFLOAT3>();
-    positions.resize(expectedVertexCount);
-    std::vector<DirectX::XMFLOAT3> normals = std::vector<DirectX::XMFLOAT3>();
-    normals.resize(expectedVertexCount);
+    maxPosition.x = model.accessors[primitive.attributes.at("POSITION")].maxValues[0];
+    maxPosition.y = model.accessors[primitive.attributes.at("POSITION")].maxValues[1];
+    maxPosition.z = model.accessors[primitive.attributes.at("POSITION")].maxValues[2];
 
-    bool hasPositions = (primitive.attributes.find("POSITION") != primitive.attributes.end());
-    bool hasNormals = (primitive.attributes.find("NORMAL") != primitive.attributes.end());
-    bool hasTangents = (primitive.attributes.find("TANGENT") != primitive.attributes.end());
-    bool hasTexCoords = (primitive.attributes.find("TEXCOORD_0") != primitive.attributes.end());
-    bool hasJoints = (primitive.attributes.find("JOINTS_0") != primitive.attributes.end());
-    bool hasWeights = (primitive.attributes.find("WEIGHTS_0") != primitive.attributes.end());
-
-    int& attributeAccessorIndex = positionAccessorIndex;
-    tinygltf::Accessor& attributeAccessor = model.accessors[attributeAccessorIndex];
-    tinygltf::BufferView& attributeBufferView = model.bufferViews[attributeAccessor.bufferView];
-    tinygltf::Buffer& attributeBuffer = model.buffers[attributeBufferView.buffer];
-    size_t elementSize = tinygltf::GetComponentSizeInBytes(attributeAccessor.componentType) * tinygltf::GetNumComponentsInType(attributeAccessor.type);
-    int bufferOffset = 0;
-
-    std::vector<DirectX::XMFLOAT3> positionData = std::vector<DirectX::XMFLOAT3>();
-    std::vector<DirectX::XMFLOAT3> normalData = std::vector<DirectX::XMFLOAT3>();
-    std::vector<DirectX::XMFLOAT3> tangentData = std::vector<DirectX::XMFLOAT3>();
-    std::vector<DirectX::XMFLOAT2> texCoordData = std::vector<DirectX::XMFLOAT2>();
-    std::vector<DirectX::XMFLOAT3> jointData = std::vector<DirectX::XMFLOAT3>();
-    std::vector<DirectX::XMFLOAT3> weightData = std::vector<DirectX::XMFLOAT3>();
-
-    for (size_t acc = 0; acc < model.accessors.size(); acc++)
-    {
-        if (hasPositions)
-        {
-            positionData.resize(expectedVertexCount);
-            attributeAccessorIndex = primitive.attributes.at("POSITION");
-            attributeAccessor = model.accessors[attributeAccessorIndex];
-            attributeBufferView = model.bufferViews[attributeAccessor.bufferView];
-            void* src = (attributeBuffer.data.data() + attributeBufferView.byteOffset);
-            memcpy_s(positionData.data(), sizeof(DirectX::XMFLOAT3) * positionData.size(), src, attributeBufferView.byteLength);
-        }
-
-        if (hasNormals)
-        {
-            normalData.resize(expectedVertexCount);
-            attributeAccessorIndex = primitive.attributes.at("NORMAL");
-            attributeAccessor = model.accessors[attributeAccessorIndex];
-            attributeBufferView = model.bufferViews[attributeAccessor.bufferView];
-            void* src = (attributeBuffer.data.data() + attributeBufferView.byteOffset);
-            memcpy_s(normalData.data(), sizeof(DirectX::XMFLOAT3) * normalData.size(), src, attributeBufferView.byteLength);
-        }
-
-        if (hasTangents)
-        {
-            tangentData.resize(expectedVertexCount);
-            attributeAccessorIndex = primitive.attributes.at("TANGENT");
-            attributeAccessor = model.accessors[attributeAccessorIndex];
-            attributeBufferView = model.bufferViews[attributeAccessor.bufferView];
-            void* src = (attributeBuffer.data.data() + attributeBufferView.byteOffset);
-            memcpy_s(tangentData.data(), sizeof(DirectX::XMFLOAT3) * tangentData.size(), src, attributeBufferView.byteLength);
-        }
-    }
+    minPosition.x = model.accessors[primitive.attributes.at("POSITION")].minValues[0];
+    minPosition.y = model.accessors[primitive.attributes.at("POSITION")].minValues[1];
+    minPosition.z = model.accessors[primitive.attributes.at("POSITION")].minValues[2];
 
     int index = 0;
     for (size_t i = 0; i < expectedVertexCount; i++)
     {
         index = originalVertexIndex + i;
 
-        if (hasPositions)
+        if (hasPositions && positionData != nullptr)
         {
-            vertices[index].Position = positionData[i];
+            vertices[index].Position = *(DirectX::XMFLOAT3*)(positionData + (sizeof(DirectX::XMFLOAT3) * i));
         }
 
-        if (hasNormals)
+        if (hasNormals && normalData != nullptr)
         {
-            vertices[index].Normal = normalData[i];
+            vertices[index].Normal = *(DirectX::XMFLOAT3*)(normalData + (sizeof(DirectX::XMFLOAT3) * i));
         }
 
-        if (hasTangents)
+        if (hasTangents && tangentData != nullptr)
         {
-            vertices[index].Tangent = tangentData[i];
+            vertices[index].Tangent = *(DirectX::XMFLOAT3*)(tangentData + (sizeof(DirectX::XMFLOAT3) * i));
         }
+
+        if (hasTexCoords && texCoordData != nullptr)
+        {
+            vertices[index].UV = *(DirectX::XMFLOAT2*)(texCoordData + (sizeof(DirectX::XMFLOAT2) * i));
+        }
+
+        //if (hasJoints && jointData != nullptr)
+        //{
+        //    vertices[index].Joints = *jointData[i];
+        //}
+        //
+        //if (hasJoints && weightData != nullptr)
+        //{
+        //    vertices[index].Weights = *weightData[i];
+        //}
+    }
+
+    if (positionData != nullptr)
+    {
+        delete[] positionData;
+        positionData = nullptr;
+    }
+
+    if (normalData != nullptr)
+    {
+        delete[] normalData;
+        normalData = nullptr;
+    }
+
+    if (tangentData != nullptr)
+    {
+        delete[] tangentData;
+        tangentData = nullptr;
+    }
+
+    if (texCoordData != nullptr)
+    {
+        delete[] texCoordData;
+        texCoordData = nullptr;
+    }
+
+    if (jointData != nullptr)
+    {
+        delete[] jointData;
+        jointData = nullptr;
+    }
+
+    if (weightData != nullptr)
+    {
+        delete[] weightData;
+        weightData = nullptr;
     }
 
     return true;

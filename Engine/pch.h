@@ -9,6 +9,9 @@
 
 #include "framework.h"
 
+//typedefs
+typedef unsigned char byte;
+
 //System
 #include <Windows.h>
 

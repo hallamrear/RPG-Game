@@ -261,7 +261,17 @@ const DirectX::XMFLOAT4X4& Renderer::GetProjectionMatrix() const
     return m_ProjectionMatrix;
 }
 
+DirectX::XMFLOAT4X4& Renderer::GetProjectionMatrix()
+{
+    return m_ProjectionMatrix;
+}
+
 const DirectX::XMFLOAT4X4& Renderer::GetViewMatrix() const
+{
+    return m_ViewMatrix;
+}
+
+DirectX::XMFLOAT4X4& Renderer::GetViewMatrix()
 {
     return m_ViewMatrix;
 }
