@@ -1,4 +1,5 @@
 #pragma once
+#include <DirectXMath.h>
 
 struct Vertex;
 
@@ -20,7 +21,7 @@ private:
 	static bool CreateModelFromGLTF(Renderer& renderer, Model& model, tinygltf::Model& gltfModel);
 	static bool LoadGeometryFromGLTF(Renderer& renderer, Model& model, tinygltf::Model& gltfModel);
 	static bool GetMaterialFromGLTFPrimitive(Material& vertices, const tinygltf::Model& model, const tinygltf::Primitive& primitive);
-	static bool GetVertexDataFromGLTFPrimitive(std::vector<Vertex>& vertices, const tinygltf::Model& model, const tinygltf::Primitive& primitive);
+	static bool GetVertexDataFromGLTFPrimitive(std::vector<Vertex>& vertices, tinygltf::Model& model, tinygltf::Primitive& primitive, DirectX::XMFLOAT3& maxPosition, DirectX::XMFLOAT3& minPosition);
 	static bool GetIndexDataFromGLTFPrimitive(std::vector<uint16_t>& indices, const tinygltf::Model& model, const tinygltf::Primitive& gltfMesh);
 	static Mesh* CreateMeshFromData(Renderer& renderer, Model& model, std::vector<Vertex>& vertices, std::vector<uint16_t>& indices);
 	static bool LoadTexturesFromGLTF(Renderer& renderer, Model& model, tinygltf::Model& gltfModel);

@@ -11,6 +11,9 @@ private:
 
 	D3D12_PRIMITIVE_TOPOLOGY m_TopologyType;
 
+	DirectX::XMFLOAT3 m_MaxPosition;
+	DirectX::XMFLOAT3 m_MinPosition;
+
 	ID3D12Resource* m_VertexBuffer;
 	D3D12_VERTEX_BUFFER_VIEW m_VertexBufferView;
 
@@ -35,6 +38,9 @@ public:
 
 	const size_t GetVertexCount() const;
 	const size_t GetIndexCount() const;
+
+	const DirectX::XMFLOAT3& GetMaxPosition() const;
+	const DirectX::XMFLOAT3& GetMinPosition() const;
 
 	void Render(Renderer& renderer) const;
 };

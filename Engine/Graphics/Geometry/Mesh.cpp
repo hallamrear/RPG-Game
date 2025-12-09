@@ -12,6 +12,8 @@ Mesh::Mesh()
     m_IndexBufferView = D3D12_INDEX_BUFFER_VIEW{};
     m_IndexCount = -1;
     m_UsesIndexBuffer = false;
+    m_MaxPosition = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
+    m_MinPosition = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
 }
 
 Mesh::~Mesh()
@@ -34,6 +36,9 @@ Mesh::~Mesh()
     m_IndexBufferView = D3D12_INDEX_BUFFER_VIEW{};
     m_IndexCount = -1;
     m_UsesIndexBuffer = false;
+
+    m_MaxPosition = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
+    m_MinPosition = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
 }
 
 const ID3D12Resource* Mesh::GetVertexBuffer() const
@@ -64,6 +69,16 @@ const size_t Mesh::GetVertexCount() const
 const size_t Mesh::GetIndexCount() const
 {
     return m_IndexCount;
+}
+
+const DirectX::XMFLOAT3& Mesh::GetMaxPosition() const
+{
+    return m_MaxPosition;
+}
+
+const DirectX::XMFLOAT3& Mesh::GetMinPosition() const
+{
+    return m_MinPosition;
 }
 
 void Mesh::Render(Renderer& renderer) const
