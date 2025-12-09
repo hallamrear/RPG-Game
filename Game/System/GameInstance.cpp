@@ -118,7 +118,7 @@ void GameInstance::Render()
 		model.TestRender(m_Renderer);
 	}*/
 
-	DirectX::XMStoreFloat4x4(&cb[0].World, DirectX::XMMatrixTranspose(DirectX::XMMatrixRotationRollPitchYaw(timer / 2.0f, timer, 0.0f) * DirectX::XMMatrixTranslation(0.0f, 0.0f, 10.0f)));
+	DirectX::XMStoreFloat4x4(&cb[0].World, DirectX::XMMatrixTranspose(DirectX::XMMatrixTranslation(0.0f, 0.0f, 10.0f) * DirectX::XMMatrixRotationRollPitchYaw(timer / 2.0f, timer, 0.0f)));
 	m_Renderer.UpdateConstantBuffer(cb[0], 0);
 	model.TestRender(m_Renderer);
 

@@ -177,7 +177,7 @@ bool GeometryLoader::GetVertexDataFromGLTFPrimitive(std::vector<Vertex>& vertice
             attributeAccessorIndex = primitive.attributes.at("POSITION");
             attributeAccessor = model.accessors[attributeAccessorIndex];
             attributeBufferView = model.bufferViews[attributeAccessor.bufferView];
-            void* src = (attributeBuffer.data.data() + attributeBufferView.byteOffset + attributeAccessor.byteOffset);
+            void* src = (attributeBuffer.data.data() + attributeBufferView.byteOffset);
             memcpy_s(positionData.data(), sizeof(DirectX::XMFLOAT3) * positionData.size(), src, attributeBufferView.byteLength);
         }
 
@@ -187,69 +187,39 @@ bool GeometryLoader::GetVertexDataFromGLTFPrimitive(std::vector<Vertex>& vertice
             attributeAccessorIndex = primitive.attributes.at("NORMAL");
             attributeAccessor = model.accessors[attributeAccessorIndex];
             attributeBufferView = model.bufferViews[attributeAccessor.bufferView];
-            void* src = (attributeBuffer.data.data() + attributeBufferView.byteOffset + attributeAccessor.byteOffset);
+            void* src = (attributeBuffer.data.data() + attributeBufferView.byteOffset);
             memcpy_s(normalData.data(), sizeof(DirectX::XMFLOAT3) * normalData.size(), src, attributeBufferView.byteLength);
-        }
-    }
-
-    for (size_t i = 0; i < expectedVertexCount; i++)
-    {
-        if (hasPositions)
-        {
-            attributeAccessorIndex = primitive.attributes.at("POSITION");
-            attributeAccessor = model.accessors[attributeAccessorIndex];
-            attributeBufferView = model.bufferViews[attributeAccessor.bufferView];
-            attributeBuffer = model.buffers[attributeBufferView.buffer];
-            elementSize = tinygltf::GetComponentSizeInBytes(attributeAccessor.componentType) * tinygltf::GetNumComponentsInType(attributeAccessor.type);
-            bufferOffset = (attributeBufferView.byteOffset + attributeAccessor.byteOffset) / elementSize;
-
-            DirectX::XMFLOAT3* src = (DirectX::XMFLOAT3*)(attributeBuffer.data.data() + attributeBufferView.byteOffset + attributeAccessor.byteOffset + (elementSize * i));
-            Debug::LogMessage("%p\n", (void*)src);
-            vertices[originalVertexIndex + i].Position = *src;
-        }
-
-        if (hasNormals)
-        {
-            attributeAccessorIndex = primitive.attributes.at("NORMAL");
-            attributeAccessor = model.accessors[attributeAccessorIndex];
-            attributeBufferView = model.bufferViews[attributeAccessor.bufferView];
-            attributeBuffer = model.buffers[attributeBufferView.buffer];
-            elementSize = tinygltf::GetComponentSizeInBytes(attributeAccessor.componentType) * tinygltf::GetNumComponentsInType(attributeAccessor.type);
-            bufferOffset = (attributeBufferView.byteOffset + attributeAccessor.byteOffset) / elementSize;
-            DirectX::XMFLOAT3* src = (DirectX::XMFLOAT3*)(attributeBuffer.data.data() + attributeBufferView.byteOffset + attributeAccessor.byteOffset + (elementSize * i));
-            vertices[originalVertexIndex + i].Normal = *src;
         }
 
         if (hasTangents)
         {
+            tangentData.resize(expectedVertexCount);
             attributeAccessorIndex = primitive.attributes.at("TANGENT");
             attributeAccessor = model.accessors[attributeAccessorIndex];
             attributeBufferView = model.bufferViews[attributeAccessor.bufferView];
-            attributeBuffer = model.buffers[attributeBufferView.buffer];
-            elementSize = tinygltf::GetComponentSizeInBytes(attributeAccessor.componentType) * tinygltf::GetNumComponentsInType(attributeAccessor.type);
-            DirectX::XMFLOAT3* src = (DirectX::XMFLOAT3*)(attributeBuffer.data.data() + attributeBufferView.byteOffset + attributeAccessor.byteOffset + (elementSize * i));
-            vertices[originalVertexIndex + i].Tangent = *src;
+            void* src = (attributeBuffer.data.data() + attributeBufferView.byteOffset);
+            memcpy_s(tangentData.data(), sizeof(DirectX::XMFLOAT3) * tangentData.size(), src, attributeBufferView.byteLength);
+        }
+    }
+
+    int index = 0;
+    for (size_t i = 0; i < expectedVertexCount; i++)
+    {
+        index = originalVertexIndex + i;
+
+        if (hasPositions)
+        {
+            vertices[index].Position = positionData[i];
         }
 
-        if(hasTexCoords) 
+        if (hasNormals)
         {
-            attributeAccessorIndex = primitive.attributes.at("TEXCOORD_0");
-            attributeAccessor = model.accessors[attributeAccessorIndex];
-            attributeBufferView = model.bufferViews[attributeAccessor.bufferView];
-            attributeBuffer = model.buffers[attributeBufferView.buffer];
-            elementSize = tinygltf::GetComponentSizeInBytes(attributeAccessor.componentType) * tinygltf::GetNumComponentsInType(attributeAccessor.type);
-            DirectX::XMFLOAT2* src = (DirectX::XMFLOAT2*)(attributeBuffer.data.data() + attributeBufferView.byteOffset + attributeAccessor.byteOffset + (elementSize * i));
-            vertices[originalVertexIndex + i].UV = *src;
+            vertices[index].Normal = normalData[i];
         }
 
-        if(hasJoints) 
+        if (hasTangents)
         {
-            //TODO : Implement with skeletons.
-        }
-
-        if(hasWeights) 
-        {
-            //TODO : Implement with skeletons.
+            vertices[index].Tangent = tangentData[i];
         }
     }
 
