@@ -33,6 +33,8 @@ bool TextureLoader::LoadFromData(Renderer& renderer, Texture& texture, const voi
 		return false;
 	}
 
+	const DXGI_FORMAT textureFormat = DXGI_FORMAT::DXGI_FORMAT_R8G8B8A8_UNORM;
+
 	int width = -1;
 	int height = -1;
 	int channels = -1;
@@ -45,8 +47,10 @@ bool TextureLoader::LoadFromData(Renderer& renderer, Texture& texture, const voi
 		return false;
 	}
 
+	size_t bytesPerPixel = sizeof(unsigned char) * 4 * channels;
+
 	D3D12_HEAP_PROPERTIES defaultHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE::D3D12_HEAP_TYPE_DEFAULT);
-	CD3DX12_RESOURCE_DESC resourceDesc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM, width, height);
+	CD3DX12_RESOURCE_DESC resourceDesc = CD3DX12_RESOURCE_DESC::Tex2D(textureFormat, width, height);
 	HRESULT result = device->CreateCommittedResource(&defaultHeap, D3D12_HEAP_FLAG_NONE, &resourceDesc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&texture.m_Resource));
 
 	if (FAILED(result))
@@ -55,41 +59,46 @@ bool TextureLoader::LoadFromData(Renderer& renderer, Texture& texture, const voi
 		return SUCCEEDED(result);
 	}
 
+	ID3D12Resource* textureUploadHeap = nullptr;
+	D3D12_HEAP_PROPERTIES cpuUploadHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE::D3D12_HEAP_TYPE_UPLOAD);
+	UINT64 uploadSize = GetRequiredIntermediateSize(texture.m_Resource, 0, 1);
+
+	CD3DX12_RESOURCE_DESC gpuUploadBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(uploadSize);
+
+	result = device->CreateCommittedResource(
+		&cpuUploadHeap,
+		D3D12_HEAP_FLAG_NONE,
+		&gpuUploadBufferDesc,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(&textureUploadHeap));
+
+	if (FAILED(result))
 	{
-		ID3D12Resource* textureUploadHeap = nullptr;
-		D3D12_HEAP_PROPERTIES cpuUploadHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE::D3D12_HEAP_TYPE_UPLOAD);
-		UINT64 uploadSize = GetRequiredIntermediateSize(texture.m_Resource, 0, 1);
-
-		CD3DX12_RESOURCE_DESC gpuUploadBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(uploadSize);
-
-		result = device->CreateCommittedResource(
-			&cpuUploadHeap,
-			D3D12_HEAP_FLAG_NONE,
-			&gpuUploadBufferDesc,
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			nullptr,
-			IID_PPV_ARGS(&textureUploadHeap));
-
-		if (FAILED(result))
-		{
-			Debug::LogSevere("Failed to create commited BPU resources (upload heap) for texture.\n");
-			return SUCCEEDED(result);
-		}
-
-
-		D3D12_SUBRESOURCE_DATA textureData = {};
-		textureData.pData = pixels;
-		textureData.RowPitch = width * (4 * sizeof(char));
-		textureData.SlicePitch = textureData.RowPitch * height;
-
-		UpdateSubresources(commandList, texture.m_Resource, textureUploadHeap, 0, 0, 1, &textureData);
-
-		CD3DX12_RESOURCE_BARRIER copyToSRVTransition = CD3DX12_RESOURCE_BARRIER::Transition(texture.m_Resource, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-		commandList->ResourceBarrier(1, &copyToSRVTransition);
+		Debug::LogSevere("Failed to create commited BPU resources (upload heap) for texture.\n");
+		return SUCCEEDED(result);
 	}
+
+	D3D12_SUBRESOURCE_DATA textureData = {};
+	textureData.pData = pixels;
+	textureData.RowPitch = (width * 4 + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u);
+	textureData.SlicePitch = textureData.RowPitch * height;
+
+	UpdateSubresources(commandList, texture.m_Resource, textureUploadHeap, 0, 0, 1, &textureData);
+
+	CD3DX12_RESOURCE_BARRIER copyToSRVTransition = CD3DX12_RESOURCE_BARRIER::Transition(texture.m_Resource, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	commandList->ResourceBarrier(1, &copyToSRVTransition);
 	 
-	CD3DX12_SHADER_RESOURCE_VIEW_DESC srvDesc = CD3DX12_SHADER_RESOURCE_VIEW_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM);
+	CD3DX12_SHADER_RESOURCE_VIEW_DESC srvDesc = CD3DX12_SHADER_RESOURCE_VIEW_DESC::Tex2D(textureFormat);
 	device->CreateShaderResourceView(texture.m_Resource, &srvDesc, renderer.GetSRVDescriptorHeapStart());
+
+	result = renderer.ExecuteAndResetCommandList();
+
+	if (FAILED(result))
+	{
+		Debug::LogSevere("Failed to execute and reset command list during texture buffer creation.\n");
+		return SUCCEEDED(result);
+	}
 
 	if (texture.m_Resource != nullptr)
 	{

@@ -4,6 +4,7 @@
 
 Mesh::Mesh()
 {
+    m_Name = "Unnamed Mesh";
     m_TopologyType = D3D12_PRIMITIVE_TOPOLOGY::D3D_PRIMITIVE_TOPOLOGY_UNDEFINED;
     m_VertexBuffer = nullptr;
     m_VertexBufferView = D3D12_VERTEX_BUFFER_VIEW{};
@@ -18,6 +19,8 @@ Mesh::Mesh()
 
 Mesh::~Mesh()
 {
+    m_Name = "DELETED MESH";
+
     if (m_VertexBuffer != nullptr)
     {
         m_VertexBuffer->Release();
@@ -39,6 +42,11 @@ Mesh::~Mesh()
 
     m_MaxPosition = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
     m_MinPosition = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
+}
+
+const std::string& Mesh::GetName() const
+{
+    return m_Name;
 }
 
 const ID3D12Resource* Mesh::GetVertexBuffer() const

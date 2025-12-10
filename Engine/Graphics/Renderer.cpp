@@ -18,7 +18,7 @@ Renderer::Renderer()
 {
     m_SRVHeap = nullptr;
     m_CBVHeaps = nullptr;
-    m_ClearColour = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+    m_ClearColour = DirectX::XMFLOAT4(0.027f, 0.027f, 0.035f, 1.0f);
     m_IsInitialised = false;
     m_DXGIFactory = nullptr;
     m_Device = nullptr;
@@ -903,19 +903,19 @@ HRESULT Renderer::CreateRootSignatureAndDescriptorTable()
     slotRootParameters[1].DescriptorTable = descriptorTable;
 
     D3D12_STATIC_SAMPLER_DESC staticSamplerDesc[1]{};
-    staticSamplerDesc[0].Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
-    staticSamplerDesc[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-    staticSamplerDesc[0].AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-    staticSamplerDesc[0].AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+    staticSamplerDesc[0].Filter = D3D12_FILTER::D3D12_FILTER_COMPARISON_MIN_LINEAR_MAG_POINT_MIP_LINEAR;
+    staticSamplerDesc[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE::D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    staticSamplerDesc[0].AddressV = D3D12_TEXTURE_ADDRESS_MODE::D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    staticSamplerDesc[0].AddressW = D3D12_TEXTURE_ADDRESS_MODE::D3D12_TEXTURE_ADDRESS_MODE_WRAP;
     staticSamplerDesc[0].MipLODBias = 0;
     staticSamplerDesc[0].MaxAnisotropy = 0;
     staticSamplerDesc[0].ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
-    staticSamplerDesc[0].BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
+    staticSamplerDesc[0].BorderColor = D3D12_STATIC_BORDER_COLOR::D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
     staticSamplerDesc[0].MinLOD = 0.0f;
-    staticSamplerDesc[0].MaxLOD = D3D12_FLOAT32_MAX;
+    staticSamplerDesc[0].MaxLOD = FLT_MAX;
     staticSamplerDesc[0].ShaderRegister = 0;
     staticSamplerDesc[0].RegisterSpace = 0;
-    staticSamplerDesc[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    staticSamplerDesc[0].ShaderVisibility = D3D12_SHADER_VISIBILITY::D3D12_SHADER_VISIBILITY_PIXEL;
 
     CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc{};
     rootSignatureDesc.Init(
@@ -1165,6 +1165,37 @@ D3D12_CPU_DESCRIPTOR_HANDLE Renderer::GetSRVDescriptorHeapStart() const
     return m_SRVHeap->GetCPUDescriptorHandleForHeapStart();
 }
 
+HRESULT Renderer::ExecuteAndResetCommandList()
+{
+    HRESULT result = E_FAIL;
+
+    result = m_CommandList->Close();
+    if (FAILED(result))
+    {
+        Debug::LogSevere("Failed to close command list during default buffer creation.\n");
+        return result;
+    }
+
+    ID3D12CommandList* commandLists = { m_CommandList };
+    m_CommandQueue->ExecuteCommandLists(1, &commandLists);
+
+    result = FlushCommandQueue();
+    if (FAILED(result))
+    {
+        Debug::LogSevere("Failed to flush command queue during default buffer creation.\n");
+        return result;
+    }
+
+    result = ResetCommandList();
+    if (FAILED(result))
+    {
+        Debug::LogSevere("Failed to reset command list during default buffer creation.\n");
+        return result;
+    }
+
+    return result;
+}
+
 HRESULT Renderer::CreateDefaultBuffer(ID3D12Resource*& defaultBuffer, ID3D12Resource*& gpuUploadBuffer, const void* data, const size_t& sizeBytes)
 {
     CUSTOM_ASSERT((defaultBuffer == nullptr));
@@ -1221,27 +1252,11 @@ HRESULT Renderer::CreateDefaultBuffer(ID3D12Resource*& defaultBuffer, ID3D12Reso
     CD3DX12_RESOURCE_BARRIER toReadTransition = CD3DX12_RESOURCE_BARRIER::Transition(defaultBuffer, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_GENERIC_READ);
     m_CommandList->ResourceBarrier(1, &toReadTransition);
 
-    ID3D12CommandList* commandLists = { m_CommandList };
-    result = m_CommandList->Close();
-    if (FAILED(result))
-    {
-        Debug::LogSevere("Failed to close command list during default buffer creation.\n");
-        return result;
-    }
-       
-    m_CommandQueue->ExecuteCommandLists(1, &commandLists);
+    result = ExecuteAndResetCommandList();
 
-    result = FlushCommandQueue();
     if (FAILED(result))
     {
-        Debug::LogSevere("Failed to flush command queue during default buffer creation.\n");
-        return result;
-    }
-
-    result = ResetCommandList();
-    if (FAILED(result))
-    {
-        Debug::LogSevere("Failed to reset command list during default buffer creation.\n");
+        Debug::LogSevere("Failed to execute and reset command list during default buffer creation.\n");
         return result;
     }
 

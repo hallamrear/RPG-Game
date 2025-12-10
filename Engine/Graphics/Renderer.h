@@ -114,6 +114,7 @@ public:
 	HRESULT ResetCommandList();
 	ID3D12GraphicsCommandList* GetCommandList();
 	const ID3D12GraphicsCommandList* GetCommandList() const;
+	HRESULT ExecuteAndResetCommandList();
 
 	const ID3D12Device* GetDevice() const;
 	ID3D12Device* GetDevice();

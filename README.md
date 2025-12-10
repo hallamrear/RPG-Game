@@ -23,3 +23,7 @@ Runescape-esc game. Hopefully.
 	- Render
 	- Update
 	- Pathfinding Calculation
+
+## Resources
+
+- [Kenney's Prototype Textures](https://kenney.nl/assets/prototype-textures)

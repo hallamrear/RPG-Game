@@ -18,13 +18,13 @@ class Material;
 class GeometryLoader
 {
 private:
-	static bool CreateModelFromGLTF(Renderer& renderer, Model& model, tinygltf::Model& gltfModel);
+	static bool CreateModelFromGLTF(Renderer& renderer, Model& model, tinygltf::Model& gltfModel, const std::string& parentPath);
 	static bool LoadGeometryFromGLTF(Renderer& renderer, Model& model, tinygltf::Model& gltfModel);
 	static bool GetMaterialFromGLTFPrimitive(Material& vertices, const tinygltf::Model& model, const tinygltf::Primitive& primitive);
 	static bool GetVertexDataFromGLTFPrimitive(std::vector<Vertex>& vertices, tinygltf::Model& model, tinygltf::Primitive& primitive, DirectX::XMFLOAT3& maxPosition, DirectX::XMFLOAT3& minPosition);
 	static bool GetIndexDataFromGLTFPrimitive(std::vector<uint16_t>& indices, const tinygltf::Model& model, const tinygltf::Primitive& gltfMesh);
 	static Mesh* CreateMeshFromData(Renderer& renderer, Model& model, std::vector<Vertex>& vertices, std::vector<uint16_t>& indices);
-	static bool LoadTexturesFromGLTF(Renderer& renderer, Model& model, tinygltf::Model& gltfModel);
+	static bool LoadTexturesFromGLTF(Renderer& renderer, Model& model, tinygltf::Model& gltfModel, const std::string& parentPath);
 	static bool GetElementDataFromGLTFBuffer(const std::string& attributeName, byte*& data, tinygltf::Model& model, tinygltf::Primitive& primitive);
 
 public:

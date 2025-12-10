@@ -9,6 +9,8 @@ private:
 	friend class GeometryLoader;
 	friend class Model;
 
+	std::string m_Name;
+
 	D3D12_PRIMITIVE_TOPOLOGY m_TopologyType;
 
 	DirectX::XMFLOAT3 m_MaxPosition;
@@ -29,6 +31,8 @@ protected:
 public:
 	Mesh();
 	~Mesh();
+
+	const std::string& GetName() const;
 
 	const ID3D12Resource* GetVertexBuffer() const;
 	const D3D12_VERTEX_BUFFER_VIEW& GetVertexBufferView() const;

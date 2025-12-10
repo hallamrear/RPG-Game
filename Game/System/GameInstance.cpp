@@ -96,8 +96,9 @@ void GameInstance::Update(const float& deltaTime)
 	if (!IsRunning())
 		return;
 
-	const float radius = 300.0f;
+	const float radius = 5.0f;
 	DirectX::XMFLOAT3 pos = DirectX::XMFLOAT3(sinf(timer) * radius, 10.0f, cosf(timer) * radius);
+	pos = DirectX::XMFLOAT3(radius, 10.0f, 0.0f);
 	DirectX::XMFLOAT3 zero = DirectX::XMFLOAT3(0.0f, pos.y, 0.0f);
 	modelPos = zero;
 	DirectX::XMFLOAT3 up = DirectX::XMFLOAT3(0.0f, 1.0f, 0.0f);
@@ -112,10 +113,12 @@ void GameInstance::Update(const float& deltaTime)
 
 	for (int i = 0; i < 6; i++)
 	{
-		DirectX::XMStoreFloat4x4(&cb[i].World, DirectX::XMMatrixTranspose(DirectX::XMMatrixTranslation(modelPos.x, modelPos.y - 100.0f, modelPos.z) * DirectX::XMMatrixRotationRollPitchYaw(0.0f, timer * 100.0f, 0.0f)));
+		DirectX::XMStoreFloat4x4(&cb[i].World, DirectX::XMMatrixTranspose(DirectX::XMMatrixRotationRollPitchYaw(0.0f, timer * 5.0f, 0.0f) * DirectX::XMMatrixTranslation(modelPos.x, modelPos.y, modelPos.z)));
 		DirectX::XMStoreFloat4x4(&cb[i].View, DirectX::XMLoadFloat4x4(&m_Renderer.GetViewMatrix()));
 		DirectX::XMStoreFloat4x4(&cb[i].Projection, DirectX::XMLoadFloat4x4(&m_Renderer.GetProjectionMatrix()));
 	}
+
+	m_Renderer.SetClearColour(DirectX::XMFLOAT4(0.25f, 0.25f, 0.25f, 1.0f));
 }
 
 void GameInstance::Render()

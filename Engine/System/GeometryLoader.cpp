@@ -9,12 +9,26 @@
 #include <Graphics/Geometry/Model.h>
 #include <Graphics/Renderer.h>
 
-bool GeometryLoader::CreateModelFromGLTF(Renderer& renderer, Model& model, tinygltf::Model& gltfModel)
+bool GeometryLoader::CreateModelFromGLTF(Renderer& renderer, Model& model, tinygltf::Model& gltfModel, const std::string& parentPath)
 {
     bool loadedOk = true;
 
     loadedOk &= LoadGeometryFromGLTF(renderer, model, gltfModel);
-    loadedOk &= LoadTexturesFromGLTF(renderer, model, gltfModel);
+    loadedOk &= LoadTexturesFromGLTF(renderer, model, gltfModel, parentPath);
+
+    for (size_t i = 1; i < 14; i++)
+    {
+        std::string p = "Resources/Orange/texture_";
+        
+        
+        if (i < 10)
+            p += "0";
+
+        p += std::to_string(i) + ".png";
+        Texture* texture = new Texture();
+        TextureLoader::LoadFromFile(renderer, *texture, p);
+        model.m_Textures.push_back(texture);
+    }
 
     return loadedOk;
 }
@@ -110,6 +124,7 @@ bool GeometryLoader::LoadGeometryFromGLTF(Renderer& renderer, Model& model, tiny
         mesh->m_TopologyType = foundTopology;
         mesh->m_MaxPosition = max;
         mesh->m_MinPosition = min;
+        mesh->m_Name = gltfModel.meshes[i].name;
 
         primitiveCount = 0;
         max = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
@@ -297,14 +312,13 @@ bool GeometryLoader::GetIndexDataFromGLTFPrimitive(std::vector<uint16_t>& indice
     case TINYGLTF_TYPE_VECTOR:
     case TINYGLTF_TYPE_MATRIX:
     default:
-        Debug::LogSevere("Unsupported type for index buffer.\n");
+        Debug::LogSevere("Unsupported type for index buffer : %i.\n", indicesAccessor.type);
         return false;
         break;
     }
 
     switch (indicesAccessor.componentType)
     {
-
     case TINYGLTF_PARAMETER_TYPE_UNSIGNED_SHORT:
     {
 
@@ -318,7 +332,7 @@ bool GeometryLoader::GetIndexDataFromGLTFPrimitive(std::vector<uint16_t>& indice
     case TINYGLTF_PARAMETER_TYPE_UNSIGNED_INT:
     case TINYGLTF_PARAMETER_TYPE_FLOAT:
     default:
-        Debug::LogSevere("Currently unsupported component type for index buffer.\n");
+        Debug::LogSevere("Currently unsupported component type for index buffer : %i.\n", indicesAccessor.componentType);
         return false;
         break;
     }
@@ -474,7 +488,7 @@ Mesh* GeometryLoader::CreateMeshFromData(Renderer& renderer, Model& model, std::
     return mesh;
 }
 
-bool GeometryLoader::LoadTexturesFromGLTF(Renderer& renderer, Model& model, tinygltf::Model& gltfModel)
+bool GeometryLoader::LoadTexturesFromGLTF(Renderer& renderer, Model& model, tinygltf::Model& gltfModel, const std::string& parentPath)
 {
     size_t textureCount = gltfModel.textures.size();
 
@@ -522,7 +536,7 @@ bool GeometryLoader::LoadTexturesFromGLTF(Renderer& renderer, Model& model, tiny
             //else
             {
                 //Image needs loading from file manually.
-                imageLoaded = TextureLoader::LoadFromFile(renderer, *texture, gltfImage.uri);
+                imageLoaded = TextureLoader::LoadFromFile(renderer, *texture, parentPath + "\\" + gltfImage.uri);
             }
 
         }
@@ -616,7 +630,7 @@ bool GeometryLoader::Load(Renderer& renderer, Model& model, const std::string& p
         return false;
     }
 
-    loadedGltf = CreateModelFromGLTF(renderer, model, gltfModel);
+    loadedGltf = CreateModelFromGLTF(renderer, model, gltfModel, filepath.parent_path().string());
 
     if (loadedGltf == false)
     {
