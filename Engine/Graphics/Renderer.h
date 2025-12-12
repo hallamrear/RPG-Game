@@ -18,6 +18,7 @@ private:
 
 	struct IDXGIFactory2* m_DXGIFactory;
 	struct ID3D12Device* m_Device;
+	struct ID3D12InfoQueue* m_InfoQueue;
 	HRESULT CreateDeviceAndFactory();
 	void DestroyDeviceAndFactory();
 
@@ -119,7 +120,9 @@ public:
 	const ID3D12Device* GetDevice() const;
 	ID3D12Device* GetDevice();
 
-	struct D3D12_CPU_DESCRIPTOR_HANDLE GetSRVDescriptorHeapStart() const;
+	UINT GetSRVDescriptorHeapSize() const;
+	struct D3D12_CPU_DESCRIPTOR_HANDLE GetCPUSRVDescriptorHeapStart() const;
+	struct D3D12_GPU_DESCRIPTOR_HANDLE GetGPUSRVDescriptorHeapStart() const;
 
 	HRESULT CreateDefaultBuffer(ID3D12Resource*& defaultBuffer, ID3D12Resource*& gpuUploadBuffer, const void* data, const size_t& sizeBytes);
 

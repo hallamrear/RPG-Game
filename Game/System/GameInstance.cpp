@@ -87,6 +87,8 @@ void GameInstance::ProcessInput()
 }
 
 static float timer = 0.0f;
+static float t = 0.0f;
+static int index = 0;
 
 ConstantBuffer cb[MAX_NUM_ENTITIES];
 DirectX::XMFLOAT3 modelPos;
@@ -104,6 +106,13 @@ void GameInstance::Update(const float& deltaTime)
 	DirectX::XMFLOAT3 up = DirectX::XMFLOAT3(0.0f, 1.0f, 0.0f);
 
 	timer += deltaTime;
+	t += deltaTime;
+
+	if (t > 0.33f)
+	{
+		index++;
+		t = 0.0f;
+	}
 
 	DirectX::XMStoreFloat4x4(&m_Renderer.GetViewMatrix(), DirectX::XMMatrixTranspose(
 		DirectX::XMMatrixLookAtLH(
@@ -128,8 +137,9 @@ void GameInstance::Render()
 
 	m_Renderer.ClearFrame();
 
+	Debug::LogMessage("%i\n", index);
 	m_Renderer.UpdateConstantBuffer(cb[0], 0);
-	model.TestRender(m_Renderer);
+	model.TestRender(index, m_Renderer);
 
 	m_Renderer.PresentFrame();
 }

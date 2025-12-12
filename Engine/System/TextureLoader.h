@@ -14,7 +14,7 @@ private:
 	static bool LoadExistingResourceFromMap(Texture& texture, const std::string& path);
 	
 public:
-	static bool LoadFromData(Renderer& renderer, Texture& texture, const void* data, const size_t& bytes);
+	static bool LoadFromData(Renderer& renderer, Texture& texture, const std::string& referenceName, const void* data, const size_t& bytes);
 	static bool LoadFromFile(Renderer& renderer, Texture& texture, const std::string& path);
 	static void Destroy(Texture& texture);
 };

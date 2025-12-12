@@ -16,7 +16,7 @@ bool TextureLoader::IsTextureLoaded(const std::string& filename)
 	return itr != m_TextureMap.end();
 }
 
-bool TextureLoader::LoadFromData(Renderer& renderer, Texture& texture, const void* data, const size_t& bytes)
+bool TextureLoader::LoadFromData(Renderer& renderer, Texture& texture, const std::string& referenceName, const void* data, const size_t& bytes)
 {
 	if (texture.IsLoaded())
 	{
@@ -90,7 +90,11 @@ bool TextureLoader::LoadFromData(Renderer& renderer, Texture& texture, const voi
 	commandList->ResourceBarrier(1, &copyToSRVTransition);
 	 
 	CD3DX12_SHADER_RESOURCE_VIEW_DESC srvDesc = CD3DX12_SHADER_RESOURCE_VIEW_DESC::Tex2D(textureFormat);
-	device->CreateShaderResourceView(texture.m_Resource, &srvDesc, renderer.GetSRVDescriptorHeapStart());
+
+	CD3DX12_GPU_DESCRIPTOR_HANDLE srvGpuHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(renderer.GetGPUSRVDescriptorHeapStart(), m_TextureMap.size(), renderer.GetSRVDescriptorHeapSize());
+	CD3DX12_CPU_DESCRIPTOR_HANDLE srvCpuHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(renderer.GetCPUSRVDescriptorHeapStart(), m_TextureMap.size(), renderer.GetSRVDescriptorHeapSize());
+
+	device->CreateShaderResourceView(texture.m_Resource, &srvDesc, srvCpuHandle);
 
 	result = renderer.ExecuteAndResetCommandList();
 
@@ -105,6 +109,9 @@ bool TextureLoader::LoadFromData(Renderer& renderer, Texture& texture, const voi
 		texture.m_Height = height;
 		texture.m_Width = width;
 		texture.m_IsLoaded = true;
+		texture.m_ID = m_TextureMap.size();
+		texture.m_SRVHandle = srvGpuHandle;
+		m_TextureMap.insert({ referenceName, texture.m_Resource});		
 	}
 
 	return texture.m_IsLoaded;
@@ -178,7 +185,7 @@ bool TextureLoader::LoadFromFile(Renderer& renderer, Texture& texture, const std
 		return false;
 	}
 
-	bool imageLoaded = LoadFromData(renderer, texture, buffer, bufferSize);
+	bool imageLoaded = LoadFromData(renderer, texture, path, buffer, bufferSize);
 
 	if (imageLoaded == false)
 	{

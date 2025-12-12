@@ -527,17 +527,7 @@ bool GeometryLoader::LoadTexturesFromGLTF(Renderer& renderer, Model& model, tiny
         {
             Debug::LogMessage("Loading image via URI\n");
             //Load image using image location.
-
-            //if (gltfImage.image.size() != 0)
-            //{
-            //    //Image has been loaded by tinyGLTF. Create texture from buffer.
-            //    imageLoaded = TextureLoader::LoadFromData(renderer, *texture, gltfImage.image.data(), gltfImage.image.size());
-            //}
-            //else
-            {
-                //Image needs loading from file manually.
-                imageLoaded = TextureLoader::LoadFromFile(renderer, *texture, parentPath + "\\" + gltfImage.uri);
-            }
+            imageLoaded = TextureLoader::LoadFromFile(renderer, *texture, parentPath + "\\" + gltfImage.uri);
 
         }
         else if (gltfImage.mimeType.empty() == false && gltfImage.bufferView != -1)
@@ -550,7 +540,7 @@ bool GeometryLoader::LoadTexturesFromGLTF(Renderer& renderer, Model& model, tiny
             const void* buffer = gltfModel.buffers[bufferView.buffer].data.data();
             const size_t bufferSize = gltfModel.buffers[bufferView.buffer].data.size();
 
-            imageLoaded = TextureLoader::LoadFromData(renderer, *texture, buffer, bufferSize);
+            imageLoaded = TextureLoader::LoadFromData(renderer, *texture, gltfImage.name, buffer, bufferSize);
         }
         else
         {

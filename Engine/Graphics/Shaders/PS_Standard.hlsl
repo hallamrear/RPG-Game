@@ -1,6 +1,5 @@
 #include "Structures.hlsli"
 
-
 Texture2D<float4> DiffuseTexture : register(t0);
 Texture2D<float4> spareTex_1 : register(t1);
 Texture2D<float4> spareTex_2 : register(t2);

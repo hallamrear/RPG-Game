@@ -22,6 +22,7 @@ Renderer::Renderer()
     m_IsInitialised = false;
     m_DXGIFactory = nullptr;
     m_Device = nullptr;
+    m_InfoQueue = nullptr;
     m_Fence = nullptr;
     m_RTVDescriptorHeapSize = 0;
     m_DSVDescriptorHeapSize = 0;
@@ -302,6 +303,11 @@ HRESULT Renderer::CreateDeviceAndFactory()
 #endif
 
     result = CreateDXGIFactory2(factoryFlags, IID_PPV_ARGS(&m_DXGIFactory));
+    if (FAILED(result))
+    {
+        Debug::LogFatal("Failed to create D3D12 Factorys.\n");
+        return result;
+    }
 
     //Create hardware device
     result = D3D12CreateDevice(nullptr, featureLevel, IID_PPV_ARGS(&m_Device));
@@ -311,11 +317,31 @@ HRESULT Renderer::CreateDeviceAndFactory()
         return result;
     }
 
+    m_Device->SetName(L"Graphics Device");
+
+#if defined(DEBUG) || defined(_DEBUG)
+    m_Device->QueryInterface(IID_PPV_ARGS(&m_InfoQueue));
+    m_InfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
+    m_InfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
+    m_InfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, false);
+#endif
+
+    //Cache descriptor sizes for later.
+    m_RTVDescriptorHeapSize = m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    m_DSVDescriptorHeapSize = m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+    m_CBVSRVDescriptorHeapSize = m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
     return result;
 }
 
 void Renderer::DestroyDeviceAndFactory()
 {
+    if (m_InfoQueue != nullptr)
+    {
+        m_InfoQueue->Release();
+        m_InfoQueue = nullptr;
+    }
+
     if (m_Device != nullptr)
     {
         m_Device->Release();
@@ -339,16 +365,13 @@ HRESULT Renderer::CreateFence()
     D3D12_FENCE_FLAGS fenceFlag = D3D12_FENCE_FLAGS::D3D12_FENCE_FLAG_NONE;
     result = m_Device->CreateFence(0, fenceFlag, IID_PPV_ARGS(&m_Fence));
 
+    m_Fence->SetName(L"Default Fence");
+
     if (FAILED(result))
     {
         Debug::LogFatal("Failed to create fence from ID3D12Device.\n");
         return result;
     }
-
-    //Cache descriptor sizes for later.
-    m_RTVDescriptorHeapSize = m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-    m_DSVDescriptorHeapSize = m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
-    m_CBVSRVDescriptorHeapSize = m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
     return result;
 }
@@ -416,6 +439,8 @@ HRESULT Renderer::CreateCommandObjects()
         return result;
     }
 
+    m_CommandQueue->SetName(L"Command Queue");
+
     result = m_Device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_CommandAllocator));
 
     if (FAILED(result))
@@ -424,6 +449,8 @@ HRESULT Renderer::CreateCommandObjects()
         return result;
     }
 
+    m_CommandAllocator->SetName(L"Command Allocator");
+
     result = m_Device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_DIRECT, m_CommandAllocator, nullptr, IID_PPV_ARGS(&m_CommandList));
 
     if (FAILED(result))
@@ -431,6 +458,8 @@ HRESULT Renderer::CreateCommandObjects()
         Debug::LogFatal("Failed to create command list from ID3D12Device.\n");
         return result;
     }
+    
+    m_CommandList->SetName(L"Command List");
 
     return result;
 }
@@ -534,6 +563,8 @@ HRESULT Renderer::CreateDescriptorHeaps()
         return result;
     }
 
+    m_RTVHeap->SetName(L"Render Target Heap");
+
     D3D12_DESCRIPTOR_HEAP_DESC dsvDescriptorHeapDesc{};
     dsvDescriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
     dsvDescriptorHeapDesc.NumDescriptors = 1;
@@ -547,9 +578,11 @@ HRESULT Renderer::CreateDescriptorHeaps()
         return result;
     }
 
+    m_DSVHeap->SetName(L"Depth Stencil Heap");
+
     D3D12_DESCRIPTOR_HEAP_DESC srvDescriptorHeapDesc{};
     srvDescriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-    srvDescriptorHeapDesc.NumDescriptors = 1;
+    srvDescriptorHeapDesc.NumDescriptors = MAX_LOADABLE_TEXTURES;
     srvDescriptorHeapDesc.NodeMask = 0;
     srvDescriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAGS::D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
     m_Device->CreateDescriptorHeap(&srvDescriptorHeapDesc, IID_PPV_ARGS(&m_SRVHeap));
@@ -559,6 +592,8 @@ HRESULT Renderer::CreateDescriptorHeaps()
         Debug::LogSevere("Failed to create SRV descriptor heap.\n");
         return result;
     }
+
+    m_SRVHeap->SetName(L"CBV/SRV/UAV Heap");
 
     return result;
 }
@@ -575,6 +610,12 @@ void Renderer::DestroyDescriptorHeaps()
     {
         m_DSVHeap->Release();
         m_DSVHeap = nullptr;
+    }
+
+    if (m_SRVHeap != nullptr)
+    {
+        m_SRVHeap->Release();
+        m_SRVHeap = nullptr;
     }
 }
 
@@ -623,6 +664,8 @@ HRESULT Renderer::CreateRenderTargetViews()
         }
 
         m_Device->CreateRenderTargetView(m_SwapchainBuffers[i], nullptr, rtvHandle);
+        std::wstring n = L"Swapchain Buffer" + std::to_wstring(i);
+        m_SwapchainBuffers[i]->SetName(n.c_str());
 
         rtvHandle.ptr += m_RTVDescriptorHeapSize;
     }
@@ -685,8 +728,7 @@ HRESULT Renderer::CreateDepthStencilBuffer()
 
     m_Device->CreateDepthStencilView(m_DepthStencilBuffer, nullptr, GetDepthStencilBufferView());
 
-    D3D12_RESOURCE_BARRIER resourceBarrier = CD3DX12_RESOURCE_BARRIER::Transition(m_DepthStencilBuffer, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE);
-    m_CommandList->ResourceBarrier(1, &resourceBarrier);
+    m_DepthStencilBuffer->SetName(L"Depth Stencil Buffer");
 
     return result;
 }
@@ -886,7 +928,7 @@ HRESULT Renderer::CreateRootSignatureAndDescriptorTable()
     slotRootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
     slotRootParameters[0].Descriptor = cbvDescriptor;
     slotRootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY::D3D12_SHADER_VISIBILITY_ALL;
-
+    
     //SRV Table
     D3D12_DESCRIPTOR_RANGE descriptorTableRange[1]{};
     descriptorTableRange[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
@@ -894,13 +936,19 @@ HRESULT Renderer::CreateRootSignatureAndDescriptorTable()
     descriptorTableRange[0].BaseShaderRegister = 0;
     descriptorTableRange[0].RegisterSpace = 0;
     descriptorTableRange[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
     D3D12_ROOT_DESCRIPTOR_TABLE descriptorTable{};
     descriptorTable.NumDescriptorRanges = _countof(descriptorTableRange);
     descriptorTable.pDescriptorRanges = &descriptorTableRange[0];
-
     slotRootParameters[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
     slotRootParameters[1].DescriptorTable = descriptorTable;
+
+    //for (size_t i = 0; i < 5; i++)
+    //{
+    //    slotRootParameters[1 + i].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
+    //    slotRootParameters[1 + i].ShaderVisibility = D3D12_SHADER_VISIBILITY::D3D12_SHADER_VISIBILITY_PIXEL;
+    //    slotRootParameters[1 + i].Descriptor.RegisterSpace = 0;
+    //    slotRootParameters[1 + i].Descriptor.ShaderRegister = 1 + i;
+    //}
 
     D3D12_STATIC_SAMPLER_DESC staticSamplerDesc[1]{};
     staticSamplerDesc[0].Filter = D3D12_FILTER::D3D12_FILTER_COMPARISON_MIN_LINEAR_MAG_POINT_MIP_LINEAR;
@@ -971,6 +1019,8 @@ HRESULT Renderer::CreateRootSignatureAndDescriptorTable()
         rootSigBlob->Release();
         rootSigBlob = nullptr;
     }
+
+    m_RootSignature->SetName(L"Root Signature");
 
     return S_OK;
 }
@@ -1122,6 +1172,7 @@ HRESULT Renderer::CreateGraphicsPipelines()
         Debug::LogSevere("Failed to create default graphics pipeline state.\n");
         return result;
     }
+    m_DefaultPipeline->SetName(L"Standard Graphics Pipeline");
 
     result = E_POINTER;
     if (m_ColourOnlyVertexShaderBlob != nullptr && m_ColourOnlyPixelShaderBlob != nullptr)
@@ -1141,6 +1192,8 @@ HRESULT Renderer::CreateGraphicsPipelines()
         return result;
     }
 
+    m_ColourOnlyPipeline->SetName(L"Colour Vertex Graphics Pipeline");
+
     return result;
 }
 
@@ -1159,10 +1212,21 @@ void Renderer::DestroyGraphicsPipelines()
     }
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE Renderer::GetSRVDescriptorHeapStart() const
+UINT Renderer::GetSRVDescriptorHeapSize() const
+{
+    return m_CBVSRVDescriptorHeapSize;
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE Renderer::GetCPUSRVDescriptorHeapStart() const
 {
     CUSTOM_ASSERT((m_SRVHeap != nullptr));
     return m_SRVHeap->GetCPUDescriptorHandleForHeapStart();
+}
+
+D3D12_GPU_DESCRIPTOR_HANDLE Renderer::GetGPUSRVDescriptorHeapStart() const
+{
+    CUSTOM_ASSERT((m_SRVHeap != nullptr));
+    return m_SRVHeap->GetGPUDescriptorHandleForHeapStart();
 }
 
 HRESULT Renderer::ExecuteAndResetCommandList()
