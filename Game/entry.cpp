@@ -72,13 +72,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     }
 
     float deltaTime = 0.0f;
+
     std::chrono::steady_clock::time_point currentTime = std::chrono::steady_clock::now();
     std::chrono::steady_clock::time_point previousTime = std::chrono::steady_clock::now();
     std::chrono::duration<float> clockDelta = { };
-    float accumulator = 0.0f;
-
-    int c = 0;
-
+    
     MSG msg{};
     while (gInstance->IsRunning())
     {
@@ -97,25 +95,12 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         }
 
         currentTime = std::chrono::steady_clock::now();
-        deltaTime = (std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - previousTime).count() / 1000.0f);
-        accumulator += deltaTime;
+        clockDelta = (currentTime - previousTime);
+        deltaTime = clockDelta.count();
 
-        c = 0;
-
-        while (accumulator >= TARGET_FPS_FRAMETIME_FLOAT)
-        {
-            gInstance->ProcessInput();
-            gInstance->Update(deltaTime);
-            accumulator -= deltaTime;
-            c++;
-        }
-
+        gInstance->ProcessInput();
+        gInstance->Update(deltaTime);
         gInstance->Render();
-
-        if (c > 0)
-        {
-            printf("%i updates per render.\n", c);
-        }
 
         previousTime = currentTime;
     }
