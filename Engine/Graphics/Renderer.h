@@ -3,6 +3,8 @@
 #include <Defines.h>
 
 class ConstantBuffer;
+class LightBuffer;
+class MaterialBuffer;
 
 class Renderer
 {
@@ -73,6 +75,10 @@ private:
 
 	char** m_ConstantBufferAddressArray;
 	ID3D12Resource** m_ConstantBufferGPUUploaderArray;
+	char** m_LightBufferAddressArray;
+	ID3D12Resource** m_LightBufferGPUUploaderArray;
+	char** m_MaterialBufferAddressArray;
+	ID3D12Resource** m_MaterialBufferGPUUploaderArray;
 	HRESULT CreateConstantBuffers();
 	void DestroyConstantBuffers();
 
@@ -83,7 +89,6 @@ private:
 	ID3D12RootSignature* m_RootSignature;
 	HRESULT CreateRootSignatureAndDescriptorTable();
 	void DestroyRootSignatureAndDescriptorTable();
-
 
 	ID3DBlob* m_DefaultPixelShaderBlob;
 	ID3DBlob* m_DefaultVertexShaderBlob;
@@ -129,6 +134,8 @@ public:
 	const DirectX::XMFLOAT4& GetClearColour() const;
 	void SetClearColour(const DirectX::XMFLOAT4& newColour);
 
+	HRESULT UpdateMaterialBuffer(MaterialBuffer& mb);
+	HRESULT UpdateLightingBuffer(LightBuffer& lb);
 	HRESULT UpdateConstantBuffer(ConstantBuffer& cb, const int& index);
 
 	static bool Initialise(Renderer& renderer, const HWND& windowHandle);

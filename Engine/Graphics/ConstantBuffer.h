@@ -1,9 +1,13 @@
 #pragma once
 #include <DirectXMath.h>
+#include <Defines.h>
+#include <Graphics/Lighting/Light.h>
+#include <Graphics/Texturing/Material.h>
 
 /// <summary>
-/// Constant buffer has to be 256-byte aligned in DX12.
+/// Constant buffers have to be 256-byte aligned in DX12.
 /// </summary>
+
 class ConstantBuffer
 {
 public:
@@ -16,3 +20,14 @@ public:
 	~ConstantBuffer();
 };
 
+class LightBuffer
+{
+public:
+	Light LightData[MAX_LIGHT_COUNT];
+};
+
+class MaterialBuffer
+{
+public:
+	Material MaterialData;
+};

@@ -1,3 +1,4 @@
+#include <../../Defines.h>
 
 cbuffer PerObjectBuffer : register(b0)
 {
@@ -5,6 +6,39 @@ cbuffer PerObjectBuffer : register(b0)
     float4x4 View;
     float4x4 Projection;
     float4x4 Padding;
+};
+
+struct Light
+{
+	int Type;
+	int Enabled;
+	float InnerCutoff;
+	float OuterCutoff;
+	float4 Position;
+	float4 Direction;
+	float4 Ambient;
+	float4 Diffuse;
+	float4 Specular;
+	float4 Attenuation;
+	float4 Padding[9];
+};
+
+cbuffer LightingBuffer : register(b1)
+{
+    Light LightData[MAX_LIGHT_COUNT];
+};
+
+struct Material
+{
+    float4 BaseColour;
+    float Metalness;
+    float Roughness;
+	float Padding[58];
+};
+
+cbuffer MaterialBuffer : register(b2)
+{
+    Material MaterialData;
 };
 
 struct VS_STANDARD_VERTEX_INPUT

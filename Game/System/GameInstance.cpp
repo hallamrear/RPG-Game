@@ -5,13 +5,20 @@
 #include <System/GeometryLoader.h>
 #include <Graphics/ConstantBuffer.h>
 
+#define TEST_MODEL_DRAWGAP 20.0f
+#define TEST_MODEL_DRAWS_X 10
+#define TEST_MODEL_DRAWS_Y 10
+#define TEST_MODEL_DRAWS (TEST_MODEL_DRAWS_X * TEST_MODEL_DRAWS_Y)
+
 Model model;
 
 GameInstance::GameInstance()
 {
 	m_IsInitalised = false;
 	m_IsRunning = false;
-	m_ConstantBuffer = nullptr;
+	m_ConstantBuffers = nullptr;
+	m_LightBuffer = nullptr;
+	m_MaterialBuffer = nullptr;
 }
 
 GameInstance::~GameInstance()
@@ -47,13 +54,46 @@ bool GameInstance::Initialise(const HWND& windowHandle)
 
 	m_IsInitalised &= Renderer::Initialise(m_Renderer, windowHandle);
 
-	GeometryLoader::Load(m_Renderer, model, "Resources/Test_Model.gltf");
+	GeometryLoader::Load(m_Renderer, model, "Resources/OSRS_Model.gltf");
 
-	m_ConstantBuffer = new ConstantBuffer();
-	DirectX::XMStoreFloat4x4(&m_ConstantBuffer->World, DirectX::XMMatrixTranspose(DirectX::XMMatrixIdentity()));
-	DirectX::XMStoreFloat4x4(&m_ConstantBuffer->View, DirectX::XMMatrixTranspose(DirectX::XMMatrixLookAtLH({ 0.0f, 1.0f, -5.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f })));
-	DirectX::XMStoreFloat4x4(&m_ConstantBuffer->Projection, DirectX::XMMatrixTranspose(DirectX::XMMatrixPerspectiveFovLH(70.0f, 1920.0f / 1080.0f, 1.0f, 1000.0f)));
+	m_ConstantBuffers = new ConstantBuffer[MAX_NUM_ENTITIES];
 
+	for (size_t i = 0; i < MAX_NUM_ENTITIES; i++)
+	{
+		DirectX::XMStoreFloat4x4(&m_ConstantBuffers[i].World, DirectX::XMMatrixIdentity());
+		DirectX::XMStoreFloat4x4(&m_ConstantBuffers[i].View, DirectX::XMMatrixIdentity());
+		DirectX::XMStoreFloat4x4(&m_ConstantBuffers[i].Projection, DirectX::XMMatrixIdentity());
+	}
+
+	m_LightBuffer = new LightBuffer();
+
+	int type = 0;
+	for (size_t i = 0; i < MAX_LIGHT_COUNT; i++)
+	{
+		m_LightBuffer->LightData[i].Enabled = 0;
+
+		if (i % 4 == 0)
+		{
+			type++;
+			m_LightBuffer->LightData[i].Enabled = 1;
+		}
+
+		m_LightBuffer->LightData[i].Type = (Light::LIGHT_TYPE)type;
+		m_LightBuffer->LightData[i].Position = DirectX::XMFLOAT4(0.0f, 5.0f, 0.0f, 1.0f);
+		m_LightBuffer->LightData[i].Direction = DirectX::XMFLOAT4(-5.0f, -5.0f, 0.0f, 1.0f);
+		m_LightBuffer->LightData[i].Ambient = DirectX::XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
+		m_LightBuffer->LightData[i].Diffuse = DirectX::XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
+		m_LightBuffer->LightData[i].Specular = DirectX::XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
+		m_LightBuffer->LightData[i].Attenuation = DirectX::XMFLOAT4(1.0f, 0.09f, 0.032f, 1.0f);
+		m_LightBuffer->LightData[i].InnerCutoff = 0.91f;
+		m_LightBuffer->LightData[i].OuterCutoff = 0.82f;
+	}
+
+	m_MaterialBuffer = new MaterialBuffer();
+	m_MaterialBuffer->MaterialData.BaseColour = DirectX::XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f);
+	m_MaterialBuffer->MaterialData.Roughness = 0.5f;
+	m_MaterialBuffer->MaterialData.Metalness = 0.5f;
+	
 	//Setting to closed as the first reference to the command list will open it.
 	if (m_Renderer.GetCommandList())
 	{
@@ -69,10 +109,22 @@ void GameInstance::Shutdown()
 	if (!m_IsInitalised)
 		return;
 
-	if (m_ConstantBuffer)
+	if (m_ConstantBuffers != nullptr)
 	{
-		delete m_ConstantBuffer;
-		m_ConstantBuffer = nullptr;
+		delete[] m_ConstantBuffers;
+		m_ConstantBuffers = nullptr;
+	}
+
+	if (m_LightBuffer != nullptr)
+	{
+		delete m_LightBuffer;
+		m_LightBuffer = nullptr;
+	}
+
+	if (m_MaterialBuffer != nullptr)
+	{
+		delete[] m_MaterialBuffer;
+		m_MaterialBuffer = nullptr;
 	}
 
 	Renderer::Shutdown(m_Renderer);
@@ -90,28 +142,16 @@ static float timer = 0.0f;
 static float t = 0.0f;
 static int index = 0;
 
-ConstantBuffer cb[MAX_NUM_ENTITIES];
-DirectX::XMFLOAT3 modelPos;
-
 void GameInstance::Update(const float& deltaTime)
 {
 	if (!IsRunning())
 		return;
 
-	const float radius = 35.0f;
-	DirectX::XMFLOAT3 pos = DirectX::XMFLOAT3(sinf(timer) * radius, 10.0f, cosf(timer) * radius);
+	DirectX::XMFLOAT3 pos = DirectX::XMFLOAT3(0.0f, 0.0f, 35.0f);
 	DirectX::XMFLOAT3 zero = DirectX::XMFLOAT3(0.0f, pos.y, 0.0f);
-	modelPos = zero;
 	DirectX::XMFLOAT3 up = DirectX::XMFLOAT3(0.0f, 1.0f, 0.0f);
 
 	timer += deltaTime;
-	t += deltaTime;
-
-	if (t > 0.33f)
-	{
-		index++;
-		t = 0.0f;
-	}
 
 	DirectX::XMStoreFloat4x4(&m_Renderer.GetViewMatrix(), DirectX::XMMatrixTranspose(
 		DirectX::XMMatrixLookAtLH(
@@ -119,11 +159,21 @@ void GameInstance::Update(const float& deltaTime)
 			DirectX::XMLoadFloat3(&zero),
 			DirectX::XMLoadFloat3(&up))));
 
-	for (int i = 0; i < 6; i++)
+	const DirectX::XMFLOAT3 startPos = DirectX::XMFLOAT3(((TEST_MODEL_DRAWS_X * TEST_MODEL_DRAWGAP * -1) / 2.0f), 0.0f, ((TEST_MODEL_DRAWS_Y * TEST_MODEL_DRAWGAP * -1) / 2.0f));
+	
+	for (size_t x = 0; x < TEST_MODEL_DRAWS_X; x++)
 	{
-		DirectX::XMStoreFloat4x4(&cb[i].World, DirectX::XMMatrixTranspose(DirectX::XMMatrixRotationRollPitchYaw(0.0f, timer * 5.0f, 0.0f) * DirectX::XMMatrixTranslation(-5.0f + (2.5f * i), 0.0f, 0.0f)));
-		DirectX::XMStoreFloat4x4(&cb[i].View, DirectX::XMLoadFloat4x4(&m_Renderer.GetViewMatrix()));
-		DirectX::XMStoreFloat4x4(&cb[i].Projection, DirectX::XMLoadFloat4x4(&m_Renderer.GetProjectionMatrix()));
+		for (size_t y = 0; y < TEST_MODEL_DRAWS_Y; y++)
+		{
+			int i = (y * TEST_MODEL_DRAWS_X) + x;
+
+			if (i > MAX_NUM_ENTITIES)
+				break;
+
+			DirectX::XMStoreFloat4x4(&m_ConstantBuffers[i].World, DirectX::XMMatrixTranspose(DirectX::XMMatrixScaling(0.05f, 0.05f, 0.05f) * DirectX::XMMatrixTranslation(startPos.x + (TEST_MODEL_DRAWGAP * x), 0.0f, startPos.z + (TEST_MODEL_DRAWGAP * y))));
+			DirectX::XMStoreFloat4x4(&m_ConstantBuffers[i].View, DirectX::XMLoadFloat4x4(&m_Renderer.GetViewMatrix()));
+			DirectX::XMStoreFloat4x4(&m_ConstantBuffers[i].Projection, DirectX::XMLoadFloat4x4(&m_Renderer.GetProjectionMatrix()));
+		}
 	}
 
 	m_Renderer.SetClearColour(DirectX::XMFLOAT4(0.25f, 0.25f, 0.25f, 1.0f));
@@ -136,9 +186,14 @@ void GameInstance::Render()
 
 	m_Renderer.ClearFrame();
 
-	for (size_t i = 0; i < 6; i++)
+	for (size_t i = 0; i < TEST_MODEL_DRAWS; i++)
 	{
-		m_Renderer.UpdateConstantBuffer(cb[i], i);
+		if (i > MAX_NUM_ENTITIES)
+			break;
+
+		m_Renderer.UpdateLightingBuffer(*m_LightBuffer);
+		m_Renderer.UpdateMaterialBuffer(*m_MaterialBuffer);
+		m_Renderer.UpdateConstantBuffer(m_ConstantBuffers[i], i);
 		model.TestRender(index + (i * 1), m_Renderer);
 	}
 

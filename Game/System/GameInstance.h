@@ -1,13 +1,19 @@
 #pragma once
 #include <Graphics/Renderer.h>
 
+class ConstantBuffer;
+class LightBuffer;
+class MaterialBuffer;
+
 class GameInstance
 {
 private:
 	bool m_IsInitalised;
 	bool m_IsRunning;
 	Renderer m_Renderer;
-	ConstantBuffer* m_ConstantBuffer;
+	ConstantBuffer* m_ConstantBuffers;
+	LightBuffer* m_LightBuffer;
+	MaterialBuffer* m_MaterialBuffer;
 
 public:
 	GameInstance();

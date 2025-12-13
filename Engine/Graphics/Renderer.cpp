@@ -51,14 +51,22 @@ Renderer::Renderer()
     m_DefaultPipeline = nullptr;
     m_RootSignature = nullptr;
 
+    m_CBVHeaps = new ID3D12DescriptorHeap * [m_SwapChainBufferCount];
     m_ConstantBufferAddressArray = new char*[m_SwapChainBufferCount];
     m_ConstantBufferGPUUploaderArray = new ID3D12Resource*[m_SwapChainBufferCount];
-    m_CBVHeaps = new ID3D12DescriptorHeap*[m_SwapChainBufferCount];
+    m_LightBufferAddressArray = new char* [m_SwapChainBufferCount];
+    m_LightBufferGPUUploaderArray = new ID3D12Resource * [m_SwapChainBufferCount];
+    m_MaterialBufferAddressArray = new char* [m_SwapChainBufferCount];
+    m_MaterialBufferGPUUploaderArray = new ID3D12Resource * [m_SwapChainBufferCount];
 
     for (size_t i = 0; i < m_SwapChainBufferCount; i++)
     {
         m_ConstantBufferGPUUploaderArray[i] = nullptr;
         m_ConstantBufferAddressArray[i] = nullptr;
+        m_LightBufferAddressArray[i] = nullptr;
+        m_LightBufferGPUUploaderArray[i] = nullptr;
+        m_MaterialBufferAddressArray[i] = nullptr;
+        m_MaterialBufferGPUUploaderArray[i] = nullptr;
         m_CBVHeaps[i] = nullptr;
     }
 
@@ -80,6 +88,30 @@ Renderer::~Renderer()
     {
         delete[] m_ConstantBufferAddressArray;
         m_ConstantBufferAddressArray = nullptr;
+    }
+
+    if (m_LightBufferGPUUploaderArray != nullptr)
+    {
+        delete[] m_LightBufferGPUUploaderArray;
+        m_LightBufferGPUUploaderArray = nullptr;
+    }
+
+    if (m_LightBufferAddressArray != nullptr)
+    {
+        delete[] m_LightBufferAddressArray;
+        m_LightBufferAddressArray = nullptr;
+    }
+
+    if (m_MaterialBufferGPUUploaderArray != nullptr)
+    {
+        delete[] m_MaterialBufferGPUUploaderArray;
+        m_MaterialBufferGPUUploaderArray = nullptr;
+    }
+
+    if (m_MaterialBufferAddressArray != nullptr)
+    {
+        delete[] m_MaterialBufferAddressArray;
+        m_MaterialBufferAddressArray = nullptr;
     }
 
     if (m_CBVHeaps != nullptr)
@@ -812,7 +844,9 @@ HRESULT Renderer::CreateConstantBuffers()
     CD3DX12_RESOURCE_DESC resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(ConstantBuffer) * MAX_NUM_ENTITIES);
     CD3DX12_HEAP_PROPERTIES heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
 
-    ConstantBuffer empty = {};
+    ConstantBuffer emptyCb = ConstantBuffer();
+    LightBuffer emptyLb = LightBuffer();
+    MaterialBuffer emptyMb = MaterialBuffer();
 
     HRESULT result = E_FAIL;
 
@@ -820,7 +854,9 @@ HRESULT Renderer::CreateConstantBuffers()
     {
         //Creating GPU upload buffer.
         CD3DX12_HEAP_PROPERTIES uploadHeapProperties = CD3DX12_HEAP_PROPERTIES::CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+        CD3DX12_RANGE readRange(0, 0);
 
+        //Creating per-frame Constant Buffer
         result = m_Device->CreateCommittedResource(
             &uploadHeapProperties,
             D3D12_HEAP_FLAG_NONE,
@@ -829,14 +865,14 @@ HRESULT Renderer::CreateConstantBuffers()
             nullptr,
             IID_PPV_ARGS(&m_ConstantBufferGPUUploaderArray[i]));
 
-        std::wstring name = L"Constant Buffer GPU Upload Heap " + std::to_wstring(i);
-        m_ConstantBufferGPUUploaderArray[i]->SetName(name.c_str());
-
         if (FAILED(result))
         {
             Debug::LogSevere("Failed to create commited resource for constant buffer's GPU upload buffer.\n");
             return result;
         }
+
+        std::wstring name = L"Constant Buffer GPU Upload Heap " + std::to_wstring(i);
+        m_ConstantBufferGPUUploaderArray[i]->SetName(name.c_str());
         
         D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc{};
         cbvDesc.BufferLocation = m_ConstantBufferGPUUploaderArray[i]->GetGPUVirtualAddress();
@@ -844,7 +880,6 @@ HRESULT Renderer::CreateConstantBuffers()
 
         m_Device->CreateConstantBufferView(&cbvDesc, m_CBVHeaps[i]->GetCPUDescriptorHandleForHeapStart());
 
-        CD3DX12_RANGE readRange(0, 0);
         result = m_ConstantBufferGPUUploaderArray[i]->Map(0, &readRange, reinterpret_cast<void**>(&m_ConstantBufferAddressArray[i]));
 
         if (FAILED(result) || m_ConstantBufferAddressArray[i] == nullptr)
@@ -853,7 +888,83 @@ HRESULT Renderer::CreateConstantBuffers()
             return result;
         }
 
-        memcpy(m_ConstantBufferAddressArray[i], &empty, sizeof(ConstantBuffer));
+        memcpy(m_ConstantBufferAddressArray[i], &emptyCb, sizeof(ConstantBuffer));
+
+        //--------------------------------------------------------------------//
+
+        //Creating per-frame Light Buffer
+        result = m_Device->CreateCommittedResource(
+            &uploadHeapProperties,
+            D3D12_HEAP_FLAG_NONE,
+            &resourceDesc,
+            D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_GENERIC_READ,
+            nullptr,
+            IID_PPV_ARGS(&m_LightBufferGPUUploaderArray[i]));
+
+        if (FAILED(result))
+        {
+            Debug::LogSevere("Failed to create committed resource for light buffer's GPU upload buffer.\n");
+            return result;
+        }
+
+        name = L"Light Buffer GPU Upload Heap " + std::to_wstring(i);
+        m_LightBufferGPUUploaderArray[i]->SetName(name.c_str());
+
+        D3D12_CONSTANT_BUFFER_VIEW_DESC lbvDesc{};
+        lbvDesc.BufferLocation = m_LightBufferGPUUploaderArray[i]->GetGPUVirtualAddress();
+        lbvDesc.SizeInBytes = (sizeof(LightBuffer) + 255) & ~255;
+        
+        CD3DX12_CPU_DESCRIPTOR_HANDLE lbHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_CBVHeaps[i]->GetCPUDescriptorHandleForHeapStart());
+        lbHandle.Offset(1, m_CBVSRVDescriptorHeapSize);
+        m_Device->CreateConstantBufferView(&lbvDesc, lbHandle);
+
+        result = m_LightBufferGPUUploaderArray[i]->Map(0, &readRange, reinterpret_cast<void**>(&m_LightBufferAddressArray[i]));
+
+        if (FAILED(result) || m_LightBufferAddressArray[i] == nullptr)
+        {
+            Debug::LogSevere("Failed to map light buffer's GPU upload heap address.\n");
+            return result;
+        }
+
+        memcpy(m_LightBufferAddressArray[i], &emptyLb, sizeof(LightBuffer));
+
+        //--------------------------------------------------------------------//
+
+        //Creating per-frame material buffer.
+        result = m_Device->CreateCommittedResource(
+            &uploadHeapProperties,
+            D3D12_HEAP_FLAG_NONE,
+            &resourceDesc,
+            D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_GENERIC_READ,
+            nullptr,
+            IID_PPV_ARGS(&m_MaterialBufferGPUUploaderArray[i]));
+
+        if (FAILED(result))
+        {
+            Debug::LogSevere("Failed to create committed resource for material buffer's GPU upload buffer.\n");
+            return result;
+        }
+
+        name = L"Material Buffer GPU Upload Heap " + std::to_wstring(i);
+        m_MaterialBufferGPUUploaderArray[i]->SetName(name.c_str());
+
+        D3D12_CONSTANT_BUFFER_VIEW_DESC mbvDesc{};
+        mbvDesc.BufferLocation = m_MaterialBufferGPUUploaderArray[i]->GetGPUVirtualAddress();
+        mbvDesc.SizeInBytes = (sizeof(MaterialBuffer) + 255) & ~255;
+
+        CD3DX12_CPU_DESCRIPTOR_HANDLE mbHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_CBVHeaps[i]->GetCPUDescriptorHandleForHeapStart());
+        mbHandle.Offset(2, m_CBVSRVDescriptorHeapSize);
+        m_Device->CreateConstantBufferView(&mbvDesc, mbHandle);
+
+        result = m_MaterialBufferGPUUploaderArray[i]->Map(0, &readRange, reinterpret_cast<void**>(&m_MaterialBufferAddressArray[i]));
+
+        if (FAILED(result) || m_MaterialBufferAddressArray[i] == nullptr)
+        {
+            Debug::LogSevere("Failed to map material buffer's GPU upload heap address.\n");
+            return result;
+        }
+
+        memcpy(m_MaterialBufferAddressArray[i], &emptyMb, sizeof(MaterialBuffer));
     }
 
     return S_OK;
@@ -861,9 +972,10 @@ HRESULT Renderer::CreateConstantBuffers()
 
 void Renderer::DestroyConstantBuffers()
 {
+    CD3DX12_RANGE readRange(0, 0);
+
     for (size_t i = 0; i < m_SwapChainBufferCount; i++)
     {
-        CD3DX12_RANGE readRange(0, 0);
         if (m_ConstantBufferGPUUploaderArray[i] != nullptr)
         {
             m_ConstantBufferGPUUploaderArray[i]->Unmap(0, &readRange);
@@ -875,13 +987,37 @@ void Renderer::DestroyConstantBuffers()
         {
             m_ConstantBufferAddressArray[i] = nullptr;
         }
+
+        if (m_LightBufferGPUUploaderArray[i] != nullptr)
+        {
+            m_LightBufferGPUUploaderArray[i]->Unmap(0, &readRange);
+            m_LightBufferGPUUploaderArray[i]->Release();
+            m_LightBufferGPUUploaderArray[i] = nullptr;
+        }
+
+        if (m_LightBufferAddressArray[i] != nullptr)
+        {
+            m_LightBufferAddressArray[i] = nullptr;
+        }
+
+        if (m_MaterialBufferGPUUploaderArray[i] != nullptr)
+        {
+            m_MaterialBufferGPUUploaderArray[i]->Unmap(0, &readRange);
+            m_MaterialBufferGPUUploaderArray[i]->Release();
+            m_MaterialBufferGPUUploaderArray[i] = nullptr;
+        }
+
+        if (m_MaterialBufferAddressArray[i] != nullptr)
+        {
+            m_MaterialBufferAddressArray[i] = nullptr;
+        }
     }
 }
 
 HRESULT Renderer::CreateConstantBufferHeap()
 {
     D3D12_DESCRIPTOR_HEAP_DESC heapDesc{};
-    heapDesc.NumDescriptors = 1;
+    heapDesc.NumDescriptors = 3;
     heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
     heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
     heapDesc.NodeMask = 0;
@@ -919,16 +1055,32 @@ void Renderer::DestroyConstantBufferHeap()
 
 HRESULT Renderer::CreateRootSignatureAndDescriptorTable()
 {
-    D3D12_ROOT_PARAMETER slotRootParameters[2]{};
+    D3D12_ROOT_PARAMETER slotRootParameters[4]{};
 
     //CBV
-    D3D12_ROOT_DESCRIPTOR cbvDescriptor{};
-    cbvDescriptor.RegisterSpace = 0;
-    cbvDescriptor.ShaderRegister = 0;
+    D3D12_ROOT_DESCRIPTOR perFrameConstantBufferDescriptor{};
+    perFrameConstantBufferDescriptor.RegisterSpace = 0;
+    perFrameConstantBufferDescriptor.ShaderRegister = 0;
     slotRootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-    slotRootParameters[0].Descriptor = cbvDescriptor;
+    slotRootParameters[0].Descriptor = perFrameConstantBufferDescriptor;
     slotRootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY::D3D12_SHADER_VISIBILITY_ALL;
-    
+
+    //Lighting Constant Buffer
+    D3D12_ROOT_DESCRIPTOR lightingConstantBufferDescriptor{};
+    lightingConstantBufferDescriptor.RegisterSpace = 0;
+    lightingConstantBufferDescriptor.ShaderRegister = 1;
+    slotRootParameters[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    slotRootParameters[1].Descriptor = lightingConstantBufferDescriptor;
+    slotRootParameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY::D3D12_SHADER_VISIBILITY_ALL;
+
+    //Material Constant Buffer
+    D3D12_ROOT_DESCRIPTOR materialConstantBufferDescriptor{};
+    materialConstantBufferDescriptor.RegisterSpace = 0;
+    materialConstantBufferDescriptor.ShaderRegister = 2;
+    slotRootParameters[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    slotRootParameters[2].Descriptor = materialConstantBufferDescriptor;
+    slotRootParameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY::D3D12_SHADER_VISIBILITY_ALL;
+
     //SRV Table
     D3D12_DESCRIPTOR_RANGE descriptorTableRange[1]{};
     descriptorTableRange[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
@@ -939,16 +1091,8 @@ HRESULT Renderer::CreateRootSignatureAndDescriptorTable()
     D3D12_ROOT_DESCRIPTOR_TABLE descriptorTable{};
     descriptorTable.NumDescriptorRanges = _countof(descriptorTableRange);
     descriptorTable.pDescriptorRanges = &descriptorTableRange[0];
-    slotRootParameters[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-    slotRootParameters[1].DescriptorTable = descriptorTable;
-
-    //for (size_t i = 0; i < 5; i++)
-    //{
-    //    slotRootParameters[1 + i].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
-    //    slotRootParameters[1 + i].ShaderVisibility = D3D12_SHADER_VISIBILITY::D3D12_SHADER_VISIBILITY_PIXEL;
-    //    slotRootParameters[1 + i].Descriptor.RegisterSpace = 0;
-    //    slotRootParameters[1 + i].Descriptor.ShaderRegister = 1 + i;
-    //}
+    slotRootParameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    slotRootParameters[3].DescriptorTable = descriptorTable;
 
     D3D12_STATIC_SAMPLER_DESC staticSamplerDesc[1]{};
     staticSamplerDesc[0].Filter = D3D12_FILTER::D3D12_FILTER_COMPARISON_MIN_LINEAR_MAG_POINT_MIP_LINEAR;
@@ -1350,6 +1494,34 @@ void Renderer::SetClearColour(const DirectX::XMFLOAT4& newColour)
     m_ClearColour = newColour;
 }
 
+HRESULT Renderer::UpdateMaterialBuffer(MaterialBuffer& mb)
+{
+    CUSTOM_ASSERT(m_IsInitialised);
+
+    if (m_MaterialBufferAddressArray[m_CurrentBackbufferIndex] != nullptr)
+    {
+        m_CommandList->SetGraphicsRootConstantBufferView(2, m_MaterialBufferGPUUploaderArray[m_CurrentBackbufferIndex]->GetGPUVirtualAddress());
+        memcpy(m_MaterialBufferAddressArray[m_CurrentBackbufferIndex], &mb, sizeof(MaterialBuffer));
+        return S_OK;
+    }
+
+    return E_FAIL;
+}
+
+HRESULT Renderer::UpdateLightingBuffer(LightBuffer& lb)
+{
+    CUSTOM_ASSERT(m_IsInitialised);
+
+    if (m_LightBufferAddressArray[m_CurrentBackbufferIndex] != nullptr)
+    {
+        m_CommandList->SetGraphicsRootConstantBufferView(1, m_LightBufferGPUUploaderArray[m_CurrentBackbufferIndex]->GetGPUVirtualAddress());
+        memcpy(m_LightBufferAddressArray[m_CurrentBackbufferIndex], &lb, sizeof(LightBuffer));
+        return S_OK;
+    }
+
+    return E_FAIL;
+}
+
 HRESULT Renderer::UpdateConstantBuffer(ConstantBuffer& cb, const int& index)
 {
     CUSTOM_ASSERT(m_IsInitialised);
@@ -1358,9 +1530,10 @@ HRESULT Renderer::UpdateConstantBuffer(ConstantBuffer& cb, const int& index)
     {
         m_CommandList->SetGraphicsRootConstantBufferView(0, m_ConstantBufferGPUUploaderArray[m_CurrentBackbufferIndex]->GetGPUVirtualAddress() + (index * sizeof(ConstantBuffer)));
         memcpy(m_ConstantBufferAddressArray[m_CurrentBackbufferIndex] + (index * sizeof(ConstantBuffer)), &cb, sizeof(ConstantBuffer));
+        return S_OK;
     }
 
-    return S_OK;
+    return E_FAIL;
 }
 
 void Renderer::ClearFrame()
@@ -1403,7 +1576,7 @@ void Renderer::ClearFrame()
     m_CommandList->SetDescriptorHeaps(_countof(heaps), heaps);
 
     CD3DX12_GPU_DESCRIPTOR_HANDLE srvHeap(m_SRVHeap->GetGPUDescriptorHandleForHeapStart());
-    m_CommandList->SetGraphicsRootDescriptorTable(1, srvHeap);
+    m_CommandList->SetGraphicsRootDescriptorTable(3, srvHeap);
 
     m_CommandList->SetPipelineState(m_DefaultPipeline);
 }

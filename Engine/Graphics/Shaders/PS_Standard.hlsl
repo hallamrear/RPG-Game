@@ -10,9 +10,13 @@ SamplerState linearSampler : register(s0);
 
 float4 main(VS_STANDARD_VERTEX_OUTPUT input) : SV_TARGET
 {   
+    float4 colour = float4(0.0f, 0.0f, 0.0f, 0.0f);
+
     [branch]
     if (input.UV.x < 0.5f)
-        return DiffuseTexture.SampleLevel(linearSampler, input.UV, 0);
+        colour = DiffuseTexture.SampleLevel(linearSampler, input.UV, 0);
     else
-        return spareTex_1.SampleLevel(linearSampler, input.UV, 0);
+        colour = spareTex_1.SampleLevel(linearSampler, input.UV, 0);
+
+    return colour * MaterialData.BaseColour;
 }

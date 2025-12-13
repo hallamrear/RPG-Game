@@ -179,6 +179,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="Graphics\Texturing\Material.h" />
+    <ClInclude Include="World\Entity.h" />
     <ClInclude Include="Graphics\ConstantBuffer.h" />
     <ClInclude Include="External\json.hpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
@@ -205,6 +207,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClInclude>
     <ClInclude Include="Graphics\Geometry\Model.h" />
+    <ClInclude Include="Graphics\Lighting\Light.h" />
     <ClInclude Include="System\FileLoadingIncludes.h" />
     <ClInclude Include="System\GeometryLoader.h" />
     <ClInclude Include="Graphics\ColourOnlyVertex.h" />
@@ -247,8 +250,11 @@
     <ClInclude Include="System\TextureLoader.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Graphics\Texturing\Material.cpp" />
+    <ClCompile Include="World\Entity.cpp" />
     <ClCompile Include="Graphics\ConstantBuffer.cpp" />
     <ClCompile Include="Graphics\Geometry\Model.cpp" />
+    <ClCompile Include="Graphics\Lighting\Light.cpp" />
     <ClCompile Include="System\GeometryLoader.cpp" />
     <ClCompile Include="Graphics\ColourOnlyVertex.cpp" />
     <ClCompile Include="Graphics\Renderer.cpp" />
