@@ -13,6 +13,12 @@ Light::Light()
 	Diffuse = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 	Specular = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 	Attenuation = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+	Strength = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+
+	for (size_t i = 0; i < _countof(Padding); i++)
+	{
+		Padding[i] = {DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)};
+	}
 }
 
 Light::~Light()
@@ -27,4 +33,10 @@ Light::~Light()
 	Diffuse = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 	Specular = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 	Attenuation = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+	Strength = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+
+	for (size_t i = 0; i < _countof(Padding); i++)
+	{
+		Padding[i] = { DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f) };
+	}
 }

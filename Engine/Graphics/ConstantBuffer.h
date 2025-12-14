@@ -14,7 +14,9 @@ public:
 	DirectX::XMFLOAT4X4 World;
 	DirectX::XMFLOAT4X4 View;
 	DirectX::XMFLOAT4X4 Projection;
-	DirectX::XMFLOAT4X4 Padding;
+	DirectX::XMFLOAT4 CameraPosition;
+	DirectX::XMFLOAT4 CameraDirection;
+	DirectX::XMFLOAT4 Padding[2];
 
 	ConstantBuffer();
 	~ConstantBuffer();

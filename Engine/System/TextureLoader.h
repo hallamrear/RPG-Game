@@ -4,7 +4,6 @@
 class Texture;
 class Renderer;
 struct ID3D12Resource;
-struct D3D12_SHADER_RESOURCE_VIEW_DESC;
 
 class TextureLoader
 {

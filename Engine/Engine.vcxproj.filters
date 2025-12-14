@@ -222,6 +222,7 @@
     <FxCompile Include="Graphics\Shaders\PS_ColourOnly.hlsl" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="Graphics\Shaders\Lighting.hlsli" />
     <None Include="Graphics\Shaders\Structures.hlsli" />
   </ItemGroup>
 </Project>

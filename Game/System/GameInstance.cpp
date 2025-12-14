@@ -11,6 +11,7 @@
 #define TEST_MODEL_DRAWS (TEST_MODEL_DRAWS_X * TEST_MODEL_DRAWS_Y)
 
 Model model;
+Model map;
 
 GameInstance::GameInstance()
 {
@@ -55,6 +56,7 @@ bool GameInstance::Initialise(const HWND& windowHandle)
 	m_IsInitalised &= Renderer::Initialise(m_Renderer, windowHandle);
 
 	GeometryLoader::Load(m_Renderer, model, "Resources/OSRS_Model.gltf");
+	GeometryLoader::Load(m_Renderer, map, "Resources/Map/Map.gltf");
 
 	m_ConstantBuffers = new ConstantBuffer[MAX_NUM_ENTITIES];
 
@@ -75,24 +77,24 @@ bool GameInstance::Initialise(const HWND& windowHandle)
 		if (i % 4 == 0)
 		{
 			type++;
-			m_LightBuffer->LightData[i].Enabled = 1;
 		}
 
 		m_LightBuffer->LightData[i].Type = (Light::LIGHT_TYPE)type;
 		m_LightBuffer->LightData[i].Position = DirectX::XMFLOAT4(0.0f, 5.0f, 0.0f, 1.0f);
-		m_LightBuffer->LightData[i].Direction = DirectX::XMFLOAT4(-5.0f, -5.0f, 0.0f, 1.0f);
+		m_LightBuffer->LightData[i].Direction = DirectX::XMFLOAT4(-5.0f, -5.0f, 0.0f, 0.0f);
 		m_LightBuffer->LightData[i].Ambient = DirectX::XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
-		m_LightBuffer->LightData[i].Diffuse = DirectX::XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
+		m_LightBuffer->LightData[i].Diffuse = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 		m_LightBuffer->LightData[i].Specular = DirectX::XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
 		m_LightBuffer->LightData[i].Attenuation = DirectX::XMFLOAT4(1.0f, 0.09f, 0.032f, 1.0f);
 		m_LightBuffer->LightData[i].InnerCutoff = 0.91f;
 		m_LightBuffer->LightData[i].OuterCutoff = 0.82f;
+		m_LightBuffer->LightData[i].Strength = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	}
 
 	m_MaterialBuffer = new MaterialBuffer();
-	m_MaterialBuffer->MaterialData.BaseColour = DirectX::XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f);
-	m_MaterialBuffer->MaterialData.Roughness = 0.5f;
-	m_MaterialBuffer->MaterialData.Metalness = 0.5f;
+	m_MaterialBuffer->MaterialData.BaseColour = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	m_MaterialBuffer->MaterialData.Roughness = 0.0f;
+	m_MaterialBuffer->MaterialData.Metalness = 0.0f;
 	
 	//Setting to closed as the first reference to the command list will open it.
 	if (m_Renderer.GetCommandList())
@@ -147,11 +149,16 @@ void GameInstance::Update(const float& deltaTime)
 	if (!IsRunning())
 		return;
 
-	DirectX::XMFLOAT3 pos = DirectX::XMFLOAT3(0.0f, 0.0f, 35.0f);
-	DirectX::XMFLOAT3 zero = DirectX::XMFLOAT3(0.0f, pos.y, 0.0f);
+	DirectX::XMFLOAT3 pos = DirectX::XMFLOAT3(sinf(timer) * 35.0f, 35.0f, cosf(timer) * 35.0f);
+	DirectX::XMFLOAT3 zero = DirectX::XMFLOAT3(0.0f, 5.0f, 0.0f);
+	DirectX::XMFLOAT3 dir = DirectX::XMFLOAT3(zero.x - pos.x, zero.y - pos.y, zero.z - pos.z);
 	DirectX::XMFLOAT3 up = DirectX::XMFLOAT3(0.0f, 1.0f, 0.0f);
 
+	DirectX::XMFLOAT4 pos4 = DirectX::XMFLOAT4(pos.x, pos.y, pos.z, 1.0f);
+	DirectX::XMFLOAT4 dir4 = DirectX::XMFLOAT4(dir.x, dir.y, dir.z, 0.0f);
+
 	timer += deltaTime;
+	t += deltaTime;
 
 	DirectX::XMStoreFloat4x4(&m_Renderer.GetViewMatrix(), DirectX::XMMatrixTranspose(
 		DirectX::XMMatrixLookAtLH(
@@ -173,7 +180,27 @@ void GameInstance::Update(const float& deltaTime)
 			DirectX::XMStoreFloat4x4(&m_ConstantBuffers[i].World, DirectX::XMMatrixTranspose(DirectX::XMMatrixScaling(0.05f, 0.05f, 0.05f) * DirectX::XMMatrixTranslation(startPos.x + (TEST_MODEL_DRAWGAP * x), 0.0f, startPos.z + (TEST_MODEL_DRAWGAP * y))));
 			DirectX::XMStoreFloat4x4(&m_ConstantBuffers[i].View, DirectX::XMLoadFloat4x4(&m_Renderer.GetViewMatrix()));
 			DirectX::XMStoreFloat4x4(&m_ConstantBuffers[i].Projection, DirectX::XMLoadFloat4x4(&m_Renderer.GetProjectionMatrix()));
+
+			DirectX::XMStoreFloat4(&m_ConstantBuffers[i].CameraPosition, DirectX::XMLoadFloat4(&pos4));
+			DirectX::XMStoreFloat4(&m_ConstantBuffers[i].CameraDirection, DirectX::XMLoadFloat4(&dir4));
 		}
+	}
+
+	if (t > 1.0f)
+	{
+		int type = (int)m_LightBuffer->LightData[0].Type;
+		type++;
+		type = type % 3;
+
+		Debug::LogMessage("LT: %i\n", type);
+
+		m_LightBuffer->LightData[0].Enabled = 1;
+		m_LightBuffer->LightData[0].Type = (Light::LIGHT_TYPE)type;
+		m_LightBuffer->LightData[0].Position = pos4;
+		m_LightBuffer->LightData[0].Direction = dir4;
+		m_LightBuffer->LightData[0].Strength = DirectX::XMFLOAT4(10.0f, 10.0f, 10.0f, 10.0f);
+
+		t = 0.0f;
 	}
 
 	m_Renderer.SetClearColour(DirectX::XMFLOAT4(0.25f, 0.25f, 0.25f, 1.0f));
@@ -186,7 +213,11 @@ void GameInstance::Render()
 
 	m_Renderer.ClearFrame();
 
-	for (size_t i = 0; i < TEST_MODEL_DRAWS; i++)
+	DirectX::XMStoreFloat4x4(&m_ConstantBuffers[0].World, DirectX::XMMatrixTranspose(DirectX::XMMatrixIdentity()));
+	m_Renderer.UpdateConstantBuffer(m_ConstantBuffers[0], 0);
+	map.TestRender(m_Renderer);
+
+	for (size_t i = 1; i < TEST_MODEL_DRAWS; i++)
 	{
 		if (i > MAX_NUM_ENTITIES)
 			break;
@@ -194,8 +225,9 @@ void GameInstance::Render()
 		m_Renderer.UpdateLightingBuffer(*m_LightBuffer);
 		m_Renderer.UpdateMaterialBuffer(*m_MaterialBuffer);
 		m_Renderer.UpdateConstantBuffer(m_ConstantBuffers[i], i);
-		model.TestRender(index + (i * 1), m_Renderer);
+		model.TestRender(m_Renderer);
 	}
+
 
 	m_Renderer.PresentFrame();
 }

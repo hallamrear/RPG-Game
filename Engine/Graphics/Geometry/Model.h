@@ -19,6 +19,6 @@ public:
 	Model();
 	~Model();
 
-	void TestRender(int index, Renderer& renderer);
+	void TestRender(Renderer& renderer);
 };
 

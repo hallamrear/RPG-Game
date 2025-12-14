@@ -16,20 +16,6 @@ bool GeometryLoader::CreateModelFromGLTF(Renderer& renderer, Model& model, tinyg
     loadedOk &= LoadGeometryFromGLTF(renderer, model, gltfModel);
     loadedOk &= LoadTexturesFromGLTF(renderer, model, gltfModel, parentPath);
 
-    for (size_t i = 1; i < 14; i++)
-    {
-        std::string p = "Resources/Orange/texture_";
-        
-        
-        if (i < 10)
-            p += "0";
-
-        p += std::to_string(i) + ".png";
-        Texture* texture = new Texture();
-        TextureLoader::LoadFromFile(renderer, *texture, p);
-        model.m_Textures.push_back(texture);
-    }
-
     return loadedOk;
 }
 

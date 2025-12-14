@@ -252,6 +252,12 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <None Include="Resources\Map\Map.bin">
+      <DeploymentContent>true</DeploymentContent>
+    </None>
+    <None Include="Resources\Map\Map.gltf">
+      <DeploymentContent>true</DeploymentContent>
+    </None>
     <None Include="Resources\OSRS_Model.bin">
       <DeploymentContent>true</DeploymentContent>
     </None>

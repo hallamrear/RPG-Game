@@ -6,9 +6,9 @@ class Light
 public:
 	enum LIGHT_TYPE : int
 	{
-		DIRECTIONAL,
-		POINT,
-		SPOT
+		DIRECTIONAL = LIGHT_DIRECTIONAL,
+		POINT = LIGHT_POINT,
+		SPOT = LIGHT_SPOT
 	};
 
 	LIGHT_TYPE Type;
@@ -21,8 +21,8 @@ public:
 	DirectX::XMFLOAT4 Diffuse;
 	DirectX::XMFLOAT4 Specular;
 	DirectX::XMFLOAT4 Attenuation;
-
-	DirectX::XMFLOAT4 Padding[9];
+	DirectX::XMFLOAT4 Strength;
+	DirectX::XMFLOAT4 Padding[8];
 
 	Light();
 	~Light();

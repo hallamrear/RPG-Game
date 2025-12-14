@@ -112,5 +112,9 @@
       <Filter>Resource Files</Filter>
     </None>
     <None Include="Resources\OSRS_Model.gltf" />
+    <None Include="Resources\Map\Map.gltf" />
+    <None Include="Resources\Map\Map.bin">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

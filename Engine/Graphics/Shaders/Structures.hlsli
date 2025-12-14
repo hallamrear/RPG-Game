@@ -1,3 +1,6 @@
+#ifndef __STRUCTURES_HLSL__
+#define __STRUCTURES_HLSL__
+
 #include <../../Defines.h>
 
 cbuffer PerObjectBuffer : register(b0)
@@ -5,7 +8,9 @@ cbuffer PerObjectBuffer : register(b0)
     float4x4 World;
     float4x4 View;
     float4x4 Projection;
-    float4x4 Padding;
+    float4 CameraPositionW;
+    float4 CameraDirectionW;
+    float4 Padding[2];
 };
 
 struct Light
@@ -20,7 +25,8 @@ struct Light
 	float4 Diffuse;
 	float4 Specular;
 	float4 Attenuation;
-	float4 Padding[9];
+    float4 Strength;
+	float4 Padding[8];
 };
 
 cbuffer LightingBuffer : register(b1)
@@ -72,3 +78,5 @@ struct VS_COLOUR_ONLY_OUTPUT
     float4 PositionW : POSITION;
     float4 Colour : COLOR;
 };
+
+#endif //__STRUCTURES_HLSL__

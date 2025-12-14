@@ -1,4 +1,5 @@
 #include "Structures.hlsli"
+#include "Lighting.hlsli"
 
 Texture2D<float4> DiffuseTexture : register(t0);
 Texture2D<float4> spareTex_1 : register(t1);
@@ -10,13 +11,43 @@ SamplerState linearSampler : register(s0);
 
 float4 main(VS_STANDARD_VERTEX_OUTPUT input) : SV_TARGET
 {   
-    float4 colour = float4(0.0f, 0.0f, 0.0f, 0.0f);
+    float4 ambientLightColour = float4(0.0f, 0.0f, 0.0f, 0.0f);
+    float4 directLightColour = float4(0.0f, 0.0f, 0.0f, 0.0f);
+    
+    Light light;
+    Material mat = MaterialData;
+    
+    float3 worldPosition = input.PositionW;
+    float3 toEyeW = normalize(CameraPositionW.xyz - worldPosition);
+    float3 lightingNormal = normalize(input.NormalW);
+    
+    for (int i = 0; i < MAX_LIGHT_COUNT; i++)
+    {
+        light = LightData[i];
+        
+        if(light.Enabled == 0)
+            continue;
+        
+        switch (light.Type)
+        {
+            case LIGHT_DIRECTIONAL:
+                directLightColour += CalculateDirectionalLight(light, mat, lightingNormal, toEyeW);
+                break;
+            
+            case LIGHT_POINT:
+                directLightColour += CalculatePointLight(light, mat, lightingNormal, toEyeW, worldPosition);
+                break;
+            
+            case LIGHT_SPOT:
+                directLightColour += CalculateSpotLight(light, mat, lightingNormal, toEyeW, worldPosition);
+                break;            
+            
+            default:
+                break;
+        }
+    }
 
-    [branch]
-    if (input.UV.x < 0.5f)
-        colour = DiffuseTexture.SampleLevel(linearSampler, input.UV, 0);
-    else
-        colour = spareTex_1.SampleLevel(linearSampler, input.UV, 0);
-
-    return colour * MaterialData.BaseColour;
+    ambientLightColour = light.Ambient * MaterialData.BaseColour;
+    
+    return ambientLightColour + directLightColour;
 }

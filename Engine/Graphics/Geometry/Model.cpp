@@ -24,19 +24,11 @@ Model::~Model()
 }
 
 #include <Graphics/Renderer.h>
-void Model::TestRender(int index, Renderer& renderer)
+void Model::TestRender(Renderer& renderer)
 {
-	//int textureCount = std::min<int>(m_Textures.size(), 5);
-
-	int textureCount = index % m_Textures.size();
-	renderer.GetCommandList()->SetGraphicsRootDescriptorTable(3, m_Textures[textureCount]->GetSRVHandle());
-
-	for (size_t i = 0; i < 5; i++)
+	if (m_Textures.size() > 0)
 	{
-		if (m_Textures[i]->GetResource() != nullptr)
-		{
-			//renderer.GetCommandList()->SetGraphicsRootShaderResourceView(1 + i, m_Textures[i]->GetResource()->GetGPUVirtualAddress());
-		}
+		renderer.GetCommandList()->SetGraphicsRootDescriptorTable(3, m_Textures[0]->GetSRVHandle());
 	}
 
 	for (size_t i = 0; i < m_Meshes.size(); i++)
