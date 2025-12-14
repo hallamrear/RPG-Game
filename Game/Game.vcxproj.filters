@@ -30,9 +30,6 @@
     <ClInclude Include="System\GameInstance.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="World.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="entry.cpp">
@@ -42,9 +39,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="System\GameInstance.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="World.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -114,6 +108,10 @@
     <None Include="Resources\OSRS_Model.gltf" />
     <None Include="Resources\Map\Map.gltf" />
     <None Include="Resources\Map\Map.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Resources\SceneLoaderTest.gltf" />
+    <None Include="Resources\SceneLoaderTest.bin">
       <Filter>Resource Files</Filter>
     </None>
   </ItemGroup>

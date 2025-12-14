@@ -1,5 +1,8 @@
 #pragma once
 
+#ifndef AAAAAAAAAAAAAAPCH_H
+#define AAAAAAAAAAAAAAPCH_H
+
 #ifndef TINYGLTF_IMPLEMENTATION
 #define TINYGLTF_IMPLEMENTATION
 #endif
@@ -12,4 +15,7 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #endif
 
+#include <filesystem>
 #include <External/tiny_gltf.h>
+
+#endif //AAAAAAAAAAAAAAPCH_H

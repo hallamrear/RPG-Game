@@ -2,8 +2,9 @@
 #include "GameInstance.h"
 #include <System/Debug.h>
 #include <Graphics/Geometry/Model.h>
-#include <System/GeometryLoader.h>
+#include <System/SceneLoader.h>
 #include <Graphics/ConstantBuffer.h>
+#include <World/World.h>
 
 #define TEST_MODEL_DRAWGAP 20.0f
 #define TEST_MODEL_DRAWS_X 10
@@ -20,6 +21,7 @@ GameInstance::GameInstance()
 	m_ConstantBuffers = nullptr;
 	m_LightBuffer = nullptr;
 	m_MaterialBuffer = nullptr;
+	m_World = nullptr;
 }
 
 GameInstance::~GameInstance()
@@ -55,8 +57,10 @@ bool GameInstance::Initialise(const HWND& windowHandle)
 
 	m_IsInitalised &= Renderer::Initialise(m_Renderer, windowHandle);
 
-	GeometryLoader::Load(m_Renderer, model, "Resources/OSRS_Model.gltf");
-	GeometryLoader::Load(m_Renderer, map, "Resources/Map/Map.gltf");
+	m_World = new World();
+	m_IsInitalised &= SceneLoader::LoadSceneFromFileIntoWorld(m_Renderer, *m_World, "Resources/SceneLoaderTest.gltf");
+
+	//GeometryLoader::Load(m_Renderer, map, "Resources/Map/Map.gltf");
 
 	m_ConstantBuffers = new ConstantBuffer[MAX_NUM_ENTITIES];
 
@@ -203,7 +207,10 @@ void GameInstance::Update(const float& deltaTime)
 		t = 0.0f;
 	}
 
-	m_Renderer.SetClearColour(DirectX::XMFLOAT4(0.25f, 0.25f, 0.25f, 1.0f));
+	if (m_World != nullptr)
+	{
+		m_World->Update(deltaTime);
+	}
 }
 
 void GameInstance::Render()
@@ -212,6 +219,9 @@ void GameInstance::Render()
 		return;
 
 	m_Renderer.ClearFrame();
+
+	m_Renderer.UpdateLightingBuffer(*m_LightBuffer);
+	m_Renderer.UpdateMaterialBuffer(*m_MaterialBuffer);
 
 	DirectX::XMStoreFloat4x4(&m_ConstantBuffers[0].World, DirectX::XMMatrixTranspose(DirectX::XMMatrixIdentity()));
 	m_Renderer.UpdateConstantBuffer(m_ConstantBuffers[0], 0);
@@ -222,10 +232,13 @@ void GameInstance::Render()
 		if (i > MAX_NUM_ENTITIES)
 			break;
 
-		m_Renderer.UpdateLightingBuffer(*m_LightBuffer);
-		m_Renderer.UpdateMaterialBuffer(*m_MaterialBuffer);
 		m_Renderer.UpdateConstantBuffer(m_ConstantBuffers[i], i);
 		model.TestRender(m_Renderer);
+	}
+	
+	if (m_World != nullptr)
+	{
+		m_World->Render(m_Renderer, model);
 	}
 
 

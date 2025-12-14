@@ -1,13 +1,13 @@
 #include "pch.h"
 #include "GeometryLoader.h"
 #include <System/Debug.h>
-#include <System/FileLoadingIncludes.h>
 #include <System/TextureLoader.h>
 #include <Graphics/Texturing/Texture.h>
 #include <Graphics/Vertex.h>
 #include <Graphics/Geometry/Mesh.h>
 #include <Graphics/Geometry/Model.h>
 #include <Graphics/Renderer.h>
+#include <System/FileLoadingIncludes.h>
 
 bool GeometryLoader::CreateModelFromGLTF(Renderer& renderer, Model& model, tinygltf::Model& gltfModel, const std::string& parentPath)
 {

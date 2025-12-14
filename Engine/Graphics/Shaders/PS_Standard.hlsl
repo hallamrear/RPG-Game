@@ -49,5 +49,7 @@ float4 main(VS_STANDARD_VERTEX_OUTPUT input) : SV_TARGET
 
     ambientLightColour = light.Ambient * MaterialData.BaseColour;
     
+    return MaterialData.BaseColour;
+    
     return ambientLightColour + directLightColour;
 }

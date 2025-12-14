@@ -41,7 +41,7 @@ float4 CalculateDirectionalLight(Light light, Material mat, float3 normal, float
     float ndotl = max(dot(normalize(lightVector), normalize(normal)), 0.0f);
     float3 lightStength = light.Strength * ndotl;
     
-    return CalculateBlinnPhongLighting(mat, lightStength, lightVector, normal, toEye);
+    return CalculateBlinnPhongLighting(mat, lightStength, normalize(lightVector), normalize(normal), normalize(toEye));
 }
 
 float4 CalculatePointLight(Light light, Material mat, float3 normal, float3 toEye, float3 position)
@@ -55,7 +55,7 @@ float4 CalculatePointLight(Light light, Material mat, float3 normal, float3 toEy
     float attenuation = CalculateQuadraticAttenuation(distance, light.Attenuation.x, light.Attenuation.y, light.Attenuation.z);
     float3 lightStength = light.Strength * ndotl * attenuation;
    
-    return CalculateBlinnPhongLighting(mat, lightStength, lightVector, normal, toEye);
+    return CalculateBlinnPhongLighting(mat, lightStength, normalize(lightVector), normalize(normal), normalize(toEye));
 }
 
 float4 CalculateSpotLight(Light light, Material mat, float3 normal, float3 toEye, float3 position)
@@ -74,7 +74,7 @@ float4 CalculateSpotLight(Light light, Material mat, float3 normal, float3 toEye
     
     float3 lightStength = light.Strength * ndotl * attenuation * intensity;
    
-    return CalculateBlinnPhongLighting(mat, lightStength, lightVector, normal, toEye);
+    return CalculateBlinnPhongLighting(mat, lightStength, normalize(lightVector), normalize(normal), normalize(toEye));
 }
 
 #endif //__LIGHTING_HLSL__
