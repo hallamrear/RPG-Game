@@ -1,5 +1,6 @@
 #pragma once
 #include <Graphics/DX12Includes.h>
+#include <Graphics/Texturing/Material.h>
 
 class Model;
 class Renderer;
@@ -11,7 +12,7 @@ private:
 	std::string m_Name;
 	Entity* m_Parent;
 	DirectX::XMFLOAT4X4 m_LocalMatrix;
-
+	Material m_Material;
 	Model* m_Model;
 
 public:
@@ -27,6 +28,10 @@ public:
 	const DirectX::XMFLOAT4X4& GetLocalMatrix() const;
 	DirectX::XMFLOAT4X4& GetLocalMatrix();
 	void SetLocalMatrix(const DirectX::XMFLOAT4X4& localMatrix);
+
+	Material& GetMaterial();
+	const Material& GetMaterial() const;
+	void SetMaterial(const Material& material);
 
 	const int& GetID() const;
 	virtual void Update(const float& deltaTime);

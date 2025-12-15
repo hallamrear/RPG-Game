@@ -1,21 +1,9 @@
 #pragma once
 
-#ifndef AAAAAAAAAAAAAAPCH_H
-#define AAAAAAAAAAAAAAPCH_H
-
-#ifndef TINYGLTF_IMPLEMENTATION
-#define TINYGLTF_IMPLEMENTATION
-#endif
-
-#ifndef STB_IMAGE_IMPLEMENTATION
-#define STB_IMAGE_IMPLEMENTATION
-#endif
-
-#ifndef STB_IMAGE_WRITE_IMPLEMENTATION
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#endif
+#ifndef __FILE_INCLUDES_H__
+#define __FILE_INCLUDES_H__
 
 #include <filesystem>
 #include <External/tiny_gltf.h>
 
-#endif //AAAAAAAAAAAAAAPCH_H
+#endif //__FILE_INCLUDES_H__

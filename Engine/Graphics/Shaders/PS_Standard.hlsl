@@ -17,9 +17,12 @@ float4 main(VS_STANDARD_VERTEX_OUTPUT input) : SV_TARGET
     Light light;
     Material mat = MaterialData;
     
-    float3 worldPosition = input.PositionW;
+    float3 worldPosition = input.PositionW.xyz;
     float3 toEyeW = normalize(CameraPositionW.xyz - worldPosition);
     float3 lightingNormal = normalize(input.NormalW);
+    
+    float4 f = mul(input.PositionW, World);
+    float4x4 tWorld = transpose(World);
     
     for (int i = 0; i < MAX_LIGHT_COUNT; i++)
     {
@@ -47,9 +50,9 @@ float4 main(VS_STANDARD_VERTEX_OUTPUT input) : SV_TARGET
         }
     }
 
-    ambientLightColour = light.Ambient * MaterialData.BaseColour;
+    ambientLightColour = light.Ambient * mat.BaseColour;
     
-    return MaterialData.BaseColour;
+    return mat.BaseColour;
     
     return ambientLightColour + directLightColour;
 }

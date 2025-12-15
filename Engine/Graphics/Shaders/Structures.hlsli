@@ -9,13 +9,21 @@ cbuffer PerFrameConstantBuffer : register(b0)
     float4x4 Projection;
     float4 CameraPositionW;
     float4 CameraDirectionW;
-    float4 Padding[2];
-    
+    float4 Padding[6];
+};
+
+struct Material
+{
+    float4 BaseColour;
+    float Metalness;
+    float Roughness;
+    float Padding[2];
 };
 
 cbuffer PerObjectConstantBuffer : register(b1)
 {
     float4x4 World;
+    Material MaterialData;
 };
 
 struct Light
@@ -37,14 +45,6 @@ struct Light
 cbuffer LightingBuffer : register(b2)
 {
     Light LightData[MAX_LIGHT_COUNT];
-};
-
-struct Material
-{
-    float4 BaseColour;
-    float Metalness;
-    float Roughness;
-	float Padding[58];
 };
 
 struct VS_STANDARD_VERTEX_INPUT

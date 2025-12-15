@@ -3,7 +3,6 @@
 
 class ConstantBuffer;
 class LightBuffer;
-class MaterialBuffer;
 class World;
 
 class GameInstance
@@ -14,7 +13,6 @@ private:
 	Renderer m_Renderer;
 	ConstantBuffer* m_ConstantBuffers;
 	LightBuffer* m_LightBuffer;
-	MaterialBuffer* m_MaterialBuffer;
 	World* m_World;
 
 public:

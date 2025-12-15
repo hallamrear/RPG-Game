@@ -4,7 +4,7 @@
 
 class ConstantBuffer;
 class LightBuffer;
-class MaterialBuffer;
+class Material;
 
 class Renderer
 {

@@ -10,6 +10,7 @@ public:
 	float Padding[2];
 
 	Material();
+	Material(const DirectX::XMFLOAT4& baseColour, const float& roughness, const float& metalness);
 	~Material();
 };
 

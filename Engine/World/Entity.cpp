@@ -15,6 +15,7 @@ Entity::Entity()
 	m_Model = nullptr;
 	m_LocalMatrix = DirectX::XMFLOAT4X4();
 	DirectX::XMStoreFloat4x4(&m_LocalMatrix, DirectX::XMMatrixIdentity());
+	m_Material = Material(DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f), 0.0f, 1.0f);
 }
 
 Entity::~Entity()
@@ -24,6 +25,7 @@ Entity::~Entity()
 	m_Model = nullptr;
 	m_LocalMatrix = DirectX::XMFLOAT4X4();
 	DirectX::XMStoreFloat4x4(&m_LocalMatrix, DirectX::XMMatrixIdentity());
+	m_Material = Material(DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f), 0.0f, 0.0f);
 }
 
 void Entity::SetParent(Entity* parent)
@@ -62,6 +64,21 @@ void Entity::SetLocalMatrix(const DirectX::XMFLOAT4X4& localMatrix)
 	m_LocalMatrix = localMatrix;
 }
 
+Material& Entity::GetMaterial()
+{
+	return m_Material;
+}
+
+const Material& Entity::GetMaterial() const
+{
+	return m_Material;
+}
+
+void Entity::SetMaterial(const Material& material)
+{
+	m_Material = material;
+}
+
 const int& Entity::GetID() const
 {
 	return m_ID;
@@ -85,6 +102,7 @@ void Entity::Render(Renderer& renderer, Model& model) const
 	DirectX::XMFLOAT4X4 worldMatrix;
 	DirectX::XMStoreFloat4x4(&worldMatrix, DirectX::XMLoadFloat4x4(&parentMatrix) * DirectX::XMLoadFloat4x4(&m_LocalMatrix));
 
+	renderer.UpdateMaterialBuffer(m_Material);
 	renderer.UpdateWorldMatrix(worldMatrix);
 
 	model.TestRender(renderer);

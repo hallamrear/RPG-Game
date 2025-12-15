@@ -3,6 +3,20 @@
 #include <World/World.h>
 #include <World/Entity.h>
 #include <System/Debug.h>
+
+
+#ifndef TINYGLTF_IMPLEMENTATION
+#define TINYGLTF_IMPLEMENTATION
+#endif
+
+#ifndef STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_IMPLEMENTATION
+#endif
+
+#ifndef STB_IMAGE_WRITE_IMPLEMENTATION
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#endif
+
 #include <System/FileLoadingIncludes.h>
 
 bool SceneLoader::LoadSceneFromFileIntoWorld(Renderer& renderer, World& world, const std::string& path)

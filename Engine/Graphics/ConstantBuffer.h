@@ -21,7 +21,7 @@ public:
 	~ConstantBuffer();
 };
 
-class PushConstants
+struct PushConstants
 {
 	/* 16x 32bit floats */ DirectX::XMFLOAT4X4 World;
 	/* 8x  32bit floats */ Material MaterialData;

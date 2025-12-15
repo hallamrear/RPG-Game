@@ -830,7 +830,6 @@ HRESULT Renderer::CreateConstantBuffers()
 
     ConstantBuffer emptyCb = ConstantBuffer();
     LightBuffer emptyLb = LightBuffer();
-    MaterialBuffer emptyMb = MaterialBuffer();
 
     HRESULT result = E_FAIL;
 
@@ -999,7 +998,7 @@ HRESULT Renderer::CreateRootSignatureAndDescriptorTable()
     slotRootParameters[0].Descriptor = perFrameConstantBufferDescriptor;
     slotRootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY::D3D12_SHADER_VISIBILITY_ALL;
 
-    //Lighting Constant Buffer
+    ////Lighting Constant Buffer
     D3D12_ROOT_DESCRIPTOR lightingConstantBufferDescriptor{};
     lightingConstantBufferDescriptor.RegisterSpace = 0;
     lightingConstantBufferDescriptor.ShaderRegister = 1;
@@ -1009,12 +1008,12 @@ HRESULT Renderer::CreateRootSignatureAndDescriptorTable()
 
     //Push Constants
     D3D12_ROOT_CONSTANTS rootConstants{};
-    rootConstants.Num32BitValues = 24;
+    rootConstants.Num32BitValues = sizeof(PushConstants) / sizeof(UINT);
     rootConstants.RegisterSpace = 0;
     rootConstants.ShaderRegister = 2;
     D3D12_ROOT_DESCRIPTOR pushConstantDescriptor{};
-    pushConstantDescriptor.RegisterSpace = 0;
-    pushConstantDescriptor.ShaderRegister = 2;
+    pushConstantDescriptor.RegisterSpace = rootConstants.RegisterSpace;
+    pushConstantDescriptor.ShaderRegister = rootConstants.ShaderRegister;
     slotRootParameters[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE::D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
     slotRootParameters[2].Descriptor = pushConstantDescriptor;
     slotRootParameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY::D3D12_SHADER_VISIBILITY_ALL;
@@ -1032,6 +1031,8 @@ HRESULT Renderer::CreateRootSignatureAndDescriptorTable()
     descriptorTable.pDescriptorRanges = &descriptorTableRange[0];
     slotRootParameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
     slotRootParameters[3].DescriptorTable = descriptorTable;
+
+    https://learn.microsoft.com/en-us/windows/win32/direct3d12/example-root-signatures
 
     D3D12_STATIC_SAMPLER_DESC staticSamplerDesc[1]{};
     staticSamplerDesc[0].Filter = D3D12_FILTER::D3D12_FILTER_COMPARISON_MIN_LINEAR_MAG_POINT_MIP_LINEAR;
@@ -1436,16 +1437,22 @@ void Renderer::SetClearColour(const DirectX::XMFLOAT4& newColour)
 HRESULT Renderer::UpdateWorldMatrix(const DirectX::XMFLOAT4X4& worldMatrix)
 {
     CUSTOM_ASSERT(m_IsInitialised);
-
-    m_CommandList->SetComputeRoot32BitConstants()
-
-    return E_NOTIMPL;
+    m_CommandList->SetGraphicsRoot32BitConstants(2, sizeof(DirectX::XMFLOAT4X4) / sizeof(UINT), &worldMatrix, offsetof(PushConstants, World) / sizeof(UINT));
+    return S_OK;
 }
 
-HRESULT Renderer::UpdateMaterialBuffer(const Material& mb)
+HRESULT Renderer::UpdateMaterialBuffer(const Material& material)
 {
     CUSTOM_ASSERT(m_IsInitialised);
-    return E_NOTIMPL;
+    size_t MaterialSize = sizeof(Material);
+    size_t UINTSize = sizeof(UINT);
+    size_t offset = offsetof(PushConstants, MaterialData);
+
+    size_t materialSizeInUINT = sizeof(Material) / sizeof(UINT);
+    size_t uintOffSetCount = offset / UINTSize;
+
+    m_CommandList->SetGraphicsRoot32BitConstants(2, sizeof(Material) / sizeof(UINT), &material, offsetof(PushConstants, MaterialData) / sizeof(UINT));
+    return S_OK;
 }
 
 HRESULT Renderer::UpdateLightingBuffer(const LightBuffer& lb)

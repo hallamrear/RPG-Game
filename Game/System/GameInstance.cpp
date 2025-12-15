@@ -3,8 +3,10 @@
 #include <System/Debug.h>
 #include <Graphics/Geometry/Model.h>
 #include <System/SceneLoader.h>
+#include <System/GeometryLoader.h>
 #include <Graphics/ConstantBuffer.h>
 #include <World/World.h>
+#include <World/Entity.h>
 
 #define TEST_MODEL_DRAWGAP 20.0f
 #define TEST_MODEL_DRAWS_X 10
@@ -14,13 +16,15 @@
 Model model;
 Model map;
 
+Entity eMap;
+Entity eModel;
+
 GameInstance::GameInstance()
 {
 	m_IsInitalised = false;
 	m_IsRunning = false;
 	m_ConstantBuffers = nullptr;
 	m_LightBuffer = nullptr;
-	m_MaterialBuffer = nullptr;
 	m_World = nullptr;
 }
 
@@ -58,15 +62,14 @@ bool GameInstance::Initialise(const HWND& windowHandle)
 	m_IsInitalised &= Renderer::Initialise(m_Renderer, windowHandle);
 
 	m_World = new World();
-	m_IsInitalised &= SceneLoader::LoadSceneFromFileIntoWorld(m_Renderer, *m_World, "Resources/SceneLoaderTest.gltf");
+	//m_IsInitalised &= SceneLoader::LoadSceneFromFileIntoWorld(m_Renderer, *m_World, "Resources/SceneLoaderTest.gltf");
 
-	//GeometryLoader::Load(m_Renderer, map, "Resources/Map/Map.gltf");
+	GeometryLoader::Load(m_Renderer, map, "Resources/Map/Map.gltf");
 
 	m_ConstantBuffers = new ConstantBuffer[MAX_NUM_ENTITIES];
 
 	for (size_t i = 0; i < MAX_NUM_ENTITIES; i++)
 	{
-		DirectX::XMStoreFloat4x4(&m_ConstantBuffers[i].World, DirectX::XMMatrixIdentity());
 		DirectX::XMStoreFloat4x4(&m_ConstantBuffers[i].View, DirectX::XMMatrixIdentity());
 		DirectX::XMStoreFloat4x4(&m_ConstantBuffers[i].Projection, DirectX::XMMatrixIdentity());
 	}
@@ -94,11 +97,6 @@ bool GameInstance::Initialise(const HWND& windowHandle)
 		m_LightBuffer->LightData[i].OuterCutoff = 0.82f;
 		m_LightBuffer->LightData[i].Strength = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	}
-
-	m_MaterialBuffer = new MaterialBuffer();
-	m_MaterialBuffer->MaterialData.BaseColour = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-	m_MaterialBuffer->MaterialData.Roughness = 0.0f;
-	m_MaterialBuffer->MaterialData.Metalness = 0.0f;
 	
 	//Setting to closed as the first reference to the command list will open it.
 	if (m_Renderer.GetCommandList())
@@ -125,12 +123,6 @@ void GameInstance::Shutdown()
 	{
 		delete m_LightBuffer;
 		m_LightBuffer = nullptr;
-	}
-
-	if (m_MaterialBuffer != nullptr)
-	{
-		delete[] m_MaterialBuffer;
-		m_MaterialBuffer = nullptr;
 	}
 
 	Renderer::Shutdown(m_Renderer);
@@ -179,9 +171,8 @@ void GameInstance::Update(const float& deltaTime)
 			int i = (y * TEST_MODEL_DRAWS_X) + x;
 
 			if (i > MAX_NUM_ENTITIES)
-				break;
+				break;			
 
-			DirectX::XMStoreFloat4x4(&m_ConstantBuffers[i].World, DirectX::XMMatrixTranspose(DirectX::XMMatrixScaling(0.05f, 0.05f, 0.05f) * DirectX::XMMatrixTranslation(startPos.x + (TEST_MODEL_DRAWGAP * x), 0.0f, startPos.z + (TEST_MODEL_DRAWGAP * y))));
 			DirectX::XMStoreFloat4x4(&m_ConstantBuffers[i].View, DirectX::XMLoadFloat4x4(&m_Renderer.GetViewMatrix()));
 			DirectX::XMStoreFloat4x4(&m_ConstantBuffers[i].Projection, DirectX::XMLoadFloat4x4(&m_Renderer.GetProjectionMatrix()));
 
@@ -221,23 +212,29 @@ void GameInstance::Render()
 	m_Renderer.ClearFrame();
 
 	m_Renderer.UpdateLightingBuffer(*m_LightBuffer);
-	m_Renderer.UpdateMaterialBuffer(*m_MaterialBuffer);
 
-	DirectX::XMStoreFloat4x4(&m_ConstantBuffers[0].World, DirectX::XMMatrixTranspose(DirectX::XMMatrixIdentity()));
 	m_Renderer.UpdateConstantBuffer(m_ConstantBuffers[0], 0);
-	map.TestRender(m_Renderer);
+	
+	DirectX::XMFLOAT4X4 identity;
+	DirectX::XMStoreFloat4x4(&identity, DirectX::XMMatrixTranspose(DirectX::XMMatrixIdentity()));
+	//DirectX::XMStoreFloat4x4(&identity, DirectX::XMMatrixTranspose(DirectX::XMMatrixTranslation(sinf(timer * 25.0f), 0.0f, cosf(timer) * 25.0f)));
+	eMap.SetLocalMatrix(identity);
 
 	for (size_t i = 1; i < TEST_MODEL_DRAWS; i++)
 	{
 		if (i > MAX_NUM_ENTITIES)
 			break;
 
-		m_Renderer.UpdateConstantBuffer(m_ConstantBuffers[i], i);
-		model.TestRender(m_Renderer);
+		//DirectX::XMFLOAT4X4 matrix;
+		//DirectX::XMStoreFloat4x4(&m_ConstantBuffers[i].World, DirectX::XMMatrixTranspose(DirectX::XMMatrixScaling(0.05f, 0.05f, 0.05f) * DirectX::XMMatrixTranslation(startPos.x + (TEST_MODEL_DRAWGAP * x), 0.0f, startPos.z + (TEST_MODEL_DRAWGAP * y))));
+		//
+		//m_Renderer.UpdateConstantBuffer(m_ConstantBuffers[i], i);
+		//model.TestRender(m_Renderer);
 	}
 	
 	if (m_World != nullptr)
 	{
+		eMap.Render(m_Renderer, map);
 		m_World->Render(m_Renderer, model);
 	}
 
