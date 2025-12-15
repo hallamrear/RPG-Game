@@ -18,7 +18,7 @@ Renderer::Renderer()
 {
     m_SRVHeap = nullptr;
     m_CBVHeaps = nullptr;
-    m_ClearColour = DirectX::XMFLOAT4(0.027f, 0.027f, 0.035f, 1.0f);
+    m_ClearColour = DirectX::XMFLOAT4(0.424f, 0.725f, 0.788f, 1.0f);
     m_IsInitialised = false;
     m_DXGIFactory = nullptr;
     m_Device = nullptr;

@@ -257,6 +257,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Graphics\Texturing\Material.cpp" />
+    <ClCompile Include="System\FileLoadingIncludes.cpp" />
     <ClCompile Include="System\SceneLoader.cpp" />
     <ClCompile Include="World\Entity.cpp" />
     <ClCompile Include="Graphics\ConstantBuffer.cpp" />
