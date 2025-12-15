@@ -1,5 +1,7 @@
 #include "pch.h"
 #include "Model.h"
+#include <Graphics/Renderer.h>
+#include <Graphics/Texturing/Material.h>
 #include <Graphics/Texturing/Texture.h>
 
 Mesh* Model::CreateNewMesh()
@@ -14,25 +16,60 @@ Model::Model()
 	m_Name = "Model not loaded.";
 	m_Meshes = std::vector<Mesh*>();
 	m_Textures = std::vector<Texture*>();
+	m_Materials = std::vector<Material*>();
 }
 
 Model::~Model()
 {
-	m_Name = "MODEL DESTRUCTOR CALLED.";
-	m_Meshes.clear();
-	m_Textures.clear();
-}
-
-#include <Graphics/Renderer.h>
-void Model::Render(Renderer& renderer) const
-{
-	if (m_Textures.size() > 0)
-	{
-		renderer.GetCommandList()->SetGraphicsRootDescriptorTable(3, m_Textures[0]->GetSRVHandle());
-	}
+	m_Name = "DESTROYED MODEL";
 
 	for (size_t i = 0; i < m_Meshes.size(); i++)
 	{
+		delete m_Meshes[i];
+		m_Meshes[i] = nullptr;
+	}
+	m_Meshes.clear();
+
+	for (size_t i = 0; i < m_Textures.size(); i++)
+	{
+		delete m_Textures[i];
+		m_Textures[i] = nullptr;
+	}
+	m_Textures.clear();
+
+	for (size_t i = 0; i < m_Materials.size(); i++)
+	{
+		delete m_Materials[i];
+		m_Materials[i] = nullptr;
+	}
+	m_Materials.clear();
+}
+
+void Model::Render(Renderer& renderer) const
+{
+	for (size_t i = 0; i < m_Meshes.size(); i++)
+	{
+		if (m_Textures.size() > 0 && m_Meshes[i]->GetTextureID() > 0)
+		{
+			Texture* texture = m_Textures[m_Meshes[i]->GetTextureID()];
+
+			if (texture != nullptr)
+			{
+				renderer.GetCommandList()->SetGraphicsRootDescriptorTable(3, texture->GetSRVHandle());
+			}
+		}
+
+		const Material* material = &Material::GetDefaultMaterial();
+
+		int id = m_Meshes[i]->GetMaterialID();
+
+		if (id > -1 && id < m_Materials.size())
+		{
+			material = m_Materials[id];
+		}
+
+		renderer.UpdateMaterialBuffer(*material);
+
 		m_Meshes[i]->Render(renderer);
 	}
 }

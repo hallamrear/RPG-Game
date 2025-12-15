@@ -104,6 +104,10 @@ private:
 	DirectX::XMFLOAT4X4 m_ViewMatrix;
 	DirectX::XMFLOAT4X4 m_ProjectionMatrix;
 
+	ID3D12Resource* m_NullTextureDescriptor;
+	HRESULT CreateNullDescriptors();
+	void DestroyNullDescriptors();
+
 protected:
 
 public:

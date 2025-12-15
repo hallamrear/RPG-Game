@@ -15,6 +15,8 @@ Entity::Entity()
 	m_Model = nullptr;
 	m_LocalMatrix = DirectX::XMFLOAT4X4();
 	DirectX::XMStoreFloat4x4(&m_LocalMatrix, DirectX::XMMatrixIdentity());
+	m_WorldMatrix = DirectX::XMFLOAT4X4();
+	DirectX::XMStoreFloat4x4(&m_WorldMatrix, DirectX::XMMatrixIdentity());
 	m_Material = Material(DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f), 0.0f, 1.0f);
 }
 
@@ -33,6 +35,11 @@ void Entity::SetParent(Entity* parent)
 	m_Parent = parent;
 }
 
+Entity* Entity::GetParent() const
+{
+	return m_Parent;
+}
+
 const std::string& Entity::GetName() const
 {
 	return m_Name;
@@ -48,6 +55,18 @@ void Entity::SetModel(const Model* model)
 	m_Model = model;
 }
 
+const DirectX::XMFLOAT4X4& Entity::GetWorldMatrix()
+{
+	if (m_Parent != nullptr)
+	{
+		DirectX::XMStoreFloat4x4(&m_WorldMatrix, DirectX::XMLoadFloat4x4(&m_Parent->GetWorldMatrix()) * DirectX::XMLoadFloat4x4(&GetLocalMatrix()));
+		return m_WorldMatrix;
+	}
+
+	m_WorldMatrix = m_LocalMatrix;
+	return m_WorldMatrix;
+}
+
 const DirectX::XMFLOAT4X4& Entity::GetLocalMatrix() const
 {
 	return m_LocalMatrix;
@@ -61,6 +80,7 @@ DirectX::XMFLOAT4X4& Entity::GetLocalMatrix()
 void Entity::SetLocalMatrix(const DirectX::XMFLOAT4X4& localMatrix)
 {
 	m_LocalMatrix = localMatrix;
+	GetWorldMatrix();
 }
 
 Material& Entity::GetMaterial()
@@ -85,29 +105,17 @@ const int& Entity::GetID() const
 
 void Entity::Update(const float& deltaTime) 
 {
-	m_Material.BaseColour.x = (float)rand() / RAND_MAX;
-	m_Material.BaseColour.y = (float)rand() / RAND_MAX;
-	m_Material.BaseColour.z = (float)rand() / RAND_MAX;
+
 }
 
-void Entity::Render(Renderer& renderer) const
+void Entity::Render(Renderer& renderer)
 {
 	if (m_Model != nullptr)
 	{
-		DirectX::XMFLOAT4X4 parentMatrix = DirectX::XMFLOAT4X4();
-		DirectX::XMStoreFloat4x4(&parentMatrix, DirectX::XMMatrixIdentity());
-
-		if (m_Parent != nullptr)
-		{
-			parentMatrix = m_Parent->m_LocalMatrix;
-		}
-
-		DirectX::XMFLOAT4X4 worldMatrix;
-		DirectX::XMStoreFloat4x4(&worldMatrix, DirectX::XMMatrixTranspose(DirectX::XMLoadFloat4x4(&parentMatrix) * DirectX::XMLoadFloat4x4(&m_LocalMatrix)));
-
+		DirectX::XMFLOAT4X4 matrix;
+		DirectX::XMStoreFloat4x4(&matrix, DirectX::XMMatrixTranspose(DirectX::XMLoadFloat4x4(&GetWorldMatrix())));
+		renderer.UpdateWorldMatrix(matrix);
 		renderer.UpdateMaterialBuffer(m_Material);
-		renderer.UpdateWorldMatrix(worldMatrix);
-
 		m_Model->Render(renderer);
 	}
 }

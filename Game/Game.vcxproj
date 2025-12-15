@@ -200,6 +200,21 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="Game.ico" />
+    <Image Include="Resources\colormap-10.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="Resources\colormap-19.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="Resources\colormap-5.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="Resources\colormap.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="Resources\Map\texture_01.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
     <Image Include="Resources\Orange\texture_01.png">
       <DeploymentContent>true</DeploymentContent>
     </Image>
@@ -266,6 +281,12 @@
       <DeploymentContent>true</DeploymentContent>
     </None>
     <None Include="Resources\SceneLoaderTest.gltf">
+      <DeploymentContent>true</DeploymentContent>
+    </None>
+    <None Include="Resources\StressTest.bin">
+      <DeploymentContent>true</DeploymentContent>
+    </None>
+    <None Include="Resources\StressTest.gltf">
       <DeploymentContent>true</DeploymentContent>
     </None>
     <None Include="Resources\Test_Model.bin">

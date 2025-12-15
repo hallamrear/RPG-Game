@@ -3,6 +3,7 @@
 #include <System/Debug.h>
 #include <System/TextureLoader.h>
 #include <Graphics/Texturing/Texture.h>
+#include <Graphics/Texturing/Material.h>
 #include <Graphics/Vertex.h>
 #include <Graphics/Geometry/Mesh.h>
 #include <Graphics/Geometry/Model.h>
@@ -45,7 +46,7 @@ bool GeometryLoader::LoadGeometryFromGLTFMesh(Renderer& renderer, Model& model, 
     DirectX::XMFLOAT3 max = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
     DirectX::XMFLOAT3 min = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
 
-    primitiveCount = gltfModel.meshes[meshIndex].primitives.size();
+    primitiveCount = gltfMesh.primitives.size();
     primitiveTargetCount = 0;
 
     vertices.clear();
@@ -103,33 +104,44 @@ bool GeometryLoader::LoadGeometryFromGLTFMesh(Renderer& renderer, Model& model, 
         {
             Debug::LogWarning("Loading a gltf model that does not seem to use indices.\n");
         }
+
+        Mesh* mesh = CreateMeshFromData(renderer, model, vertices, indices);
+
+        if (mesh == nullptr)
+        {
+            Debug::LogSevere("Failed to load mesh data from gltf.\n");
+            return false;
+        }
+
+        mesh->m_TopologyType = foundTopology;
+        mesh->m_MaxPosition = max;
+        mesh->m_MinPosition = min;
+        mesh->m_Name = gltfMesh.name;
+
+        if (gltfMesh.primitives[p].material != -1)
+        {
+            mesh->m_ModelMaterialID = gltfMesh.primitives[p].material;
+            mesh->m_ModelTextureID = gltfModel.materials[mesh->m_ModelMaterialID].pbrMetallicRoughness.baseColorTexture.index;
+
+            Material* material = new Material();
+            material->BaseColour.x = gltfModel.materials[mesh->m_ModelMaterialID].pbrMetallicRoughness.baseColorFactor[0];
+            material->BaseColour.y = gltfModel.materials[mesh->m_ModelMaterialID].pbrMetallicRoughness.baseColorFactor[1];
+            material->BaseColour.z = gltfModel.materials[mesh->m_ModelMaterialID].pbrMetallicRoughness.baseColorFactor[2];
+            material->BaseColour.w = gltfModel.materials[mesh->m_ModelMaterialID].pbrMetallicRoughness.baseColorFactor[3];
+            material->Metalness = gltfModel.materials[mesh->m_ModelMaterialID].pbrMetallicRoughness.metallicFactor;
+            material->Roughness = gltfModel.materials[mesh->m_ModelMaterialID].pbrMetallicRoughness.roughnessFactor;
+            model.m_Materials.push_back(material);
+        }
+
+        primitiveCount = 0;
+        max = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
+        min = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
+        vertices.clear();
+        indices.clear();
+        weights.clear();
+        joints.clear();
     }
 
-    Mesh* mesh = CreateMeshFromData(renderer, model, vertices, indices);
-
-    if (mesh == nullptr)
-    {
-        Debug::LogSevere("Failed to load mesh data from gltf.\n");
-        return false;
-    }
-
-    mesh->m_TopologyType = foundTopology;
-    mesh->m_MaxPosition = max;
-    mesh->m_MinPosition = min;
-    mesh->m_Name = gltfModel.meshes[meshIndex].name;
-
-    primitiveCount = 0;
-    max = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
-    min = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
-
-    return true;
-}
-
-bool GeometryLoader::GetMaterialFromGLTFPrimitive(Material& material, const tinygltf::Model& model, const tinygltf::Primitive& primitive)
-{
-    //TODO : Material renderering.
-    int materialIndex = primitive.material;
-    tinygltf::Material gltfMaterial = model.materials[materialIndex];
     return true;
 }
 
@@ -500,7 +512,7 @@ bool GeometryLoader::LoadTexturesFromGLTF(Renderer& renderer, Model& model, tiny
 
         if (gltfImage.uri.empty() && gltfImage.mimeType.empty())
         {
-            Debug::LogWarning("Error loading image %i from file: No uri or mimeType found.\n");
+            Debug::LogWarning("Error loading image %i from file: No uri or mimeType found.\n", i);
             
             //Destroy texture object.
             if (texture != nullptr)
@@ -554,6 +566,8 @@ bool GeometryLoader::LoadTexturesFromGLTF(Renderer& renderer, Model& model, tiny
                 delete texture;
                 texture = nullptr;
             }
+
+            model.m_Textures.push_back(nullptr);
         }
 
     }

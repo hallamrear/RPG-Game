@@ -58,7 +58,7 @@ bool SceneLoader::LoadSceneFromFileIntoWorld(Renderer& renderer, World& world, c
         return false;
     }
 
-    loadedGltf = LoadSceneFromGLTF(renderer, world, gltfModel);
+    loadedGltf = LoadSceneFromGLTF(renderer, world, gltfModel, filepath.parent_path().string());
 
     if (loadedGltf == false)
     {
@@ -75,7 +75,7 @@ void SceneLoader::Destroy(World& world)
     
 }
 
-bool SceneLoader::LoadSceneFromGLTF(Renderer& renderer, World& world, tinygltf::Model& gltfModel)
+bool SceneLoader::LoadSceneFromGLTF(Renderer& renderer, World& world, tinygltf::Model& gltfModel, const std::string& parentPath)
 {
     size_t sceneCount = gltfModel.scenes.size();
     Debug::LogMessage("Found %i scenes.\n", sceneCount);
@@ -112,13 +112,17 @@ bool SceneLoader::LoadSceneFromGLTF(Renderer& renderer, World& world, tinygltf::
         DirectX::XMFLOAT4X4 localMatrix;
         DirectX::XMStoreFloat4x4(&localMatrix, DirectX::XMMatrixIdentity());
 
+        Debug::LogMessage("Node[%i] transform found as ", i);
+
         if (gltfModel.nodes[i].matrix.size() == 16)
         {
+            Debug::LogMessage("matrix.\n");
             //Should copy 16 floats.
             memcpy(&localMatrix, gltfModel.nodes[i].matrix.data(), sizeof(float) * gltfModel.nodes[i].matrix.size());
         }
         else
         {
+            Debug::LogMessage("seperate components.\n");
             DirectX::XMFLOAT3 scale = DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f);
             DirectX::XMFLOAT3 translation = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
             DirectX::XMFLOAT4 rotation = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
@@ -145,6 +149,10 @@ bool SceneLoader::LoadSceneFromGLTF(Renderer& renderer, World& world, tinygltf::
                 translation.z = gltfModel.nodes[i].translation[2];
             }
 
+            Debug::LogMessage("\tScale : { %f, %f, %f }\n", scale.x, scale.y, scale.z);
+            Debug::LogMessage("\tRotation : { %f, %f, %f, %f }\n", rotation.x, rotation.y, rotation.z, rotation.w);
+            Debug::LogMessage("\tTranslation : { %f, %f, %f }\n", translation.x, translation.y, translation.z);
+
             DirectX::XMStoreFloat4x4(&localMatrix, 
                 DirectX::XMMatrixScaling(scale.x, scale.y, scale.z) *
                 DirectX::XMMatrixRotationQuaternion(DirectX::XMLoadFloat4(&rotation)) *
@@ -158,6 +166,7 @@ bool SceneLoader::LoadSceneFromGLTF(Renderer& renderer, World& world, tinygltf::
             Model* model = new Model();
 
             bool loadedMesh = GeometryLoader::LoadGeometryFromGLTFMesh(renderer, *model, gltfModel, gltfModel.nodes[i].mesh);
+            loadedMesh &= GeometryLoader::LoadTexturesFromGLTF(renderer, *model, gltfModel, parentPath);
 
             if (loadedMesh)
             {
@@ -179,6 +188,7 @@ bool SceneLoader::LoadSceneFromGLTF(Renderer& renderer, World& world, tinygltf::
         }
     }
 
+    /*
     int parentNodeIndex = -1;
     int parentWorldIndex = -1;
     int childWorldIndex = -1;
@@ -200,7 +210,7 @@ bool SceneLoader::LoadSceneFromGLTF(Renderer& renderer, World& world, tinygltf::
             {
                 child->SetParent(parent);
             }
-            
+
             parent = nullptr;
             child = nullptr;
             parentWorldIndex = -1;
@@ -209,6 +219,53 @@ bool SceneLoader::LoadSceneFromGLTF(Renderer& renderer, World& world, tinygltf::
 
         parentNodeIndex = -1;
     }
+    */
+
+    BuildHierarchy(preloadEntityIndex, world, gltfModel.nodes, nodesWithChildren);
 
     return true;
+}
+
+void SceneLoader::BuildHierarchy(const int& preloadEntityIndex, World& world, const std::vector<tinygltf::Node>& gltfNodes, std::vector<int>& nodesWithChildren)
+{
+    int parentNodeIndex = -1;
+    int parentWorldIndex = -1;
+    int childWorldIndex = -1;
+    int childNodeIndex = -1;
+    Entity* parent = nullptr;
+    Entity* child = nullptr;
+    for (size_t c = 0; c < nodesWithChildren.size(); c++)
+    {
+        int parentNodeIndex = nodesWithChildren[c];
+        size_t childCount = gltfNodes[parentNodeIndex].children.size();
+
+        for (size_t i = 0; i < childCount; i++)
+        {
+            parentWorldIndex = preloadEntityIndex + parentNodeIndex;
+            childNodeIndex = gltfNodes[parentNodeIndex].children[i];
+            childWorldIndex = preloadEntityIndex + childNodeIndex;
+
+            parent = world.m_Entities[parentWorldIndex];
+            child = world.m_Entities[childWorldIndex];
+
+            if (child != nullptr && parent != nullptr)
+            {
+                child->SetParent(parent);
+            }
+
+            const tinygltf::Node& childNode = gltfNodes[childNodeIndex];
+            if (childNode.children.size() > 0)
+            {
+                nodesWithChildren.push_back(childNodeIndex);
+            }
+
+            parent = nullptr;
+            child = nullptr;
+            parentWorldIndex = -1;
+            childNodeIndex = -1;
+            childWorldIndex = -1;
+        }
+
+        parentNodeIndex = -1;
+    }
 }

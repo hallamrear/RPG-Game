@@ -5,6 +5,8 @@
 Mesh::Mesh()
 {
     m_Name = "Unnamed Mesh";
+    m_ModelMaterialID = -1;
+    m_ModelTextureID = -1;
     m_TopologyType = D3D12_PRIMITIVE_TOPOLOGY::D3D_PRIMITIVE_TOPOLOGY_UNDEFINED;
     m_VertexBuffer = nullptr;
     m_VertexBufferView = D3D12_VERTEX_BUFFER_VIEW{};
@@ -19,6 +21,9 @@ Mesh::Mesh()
 
 Mesh::~Mesh()
 {
+    m_ModelMaterialID = -1;
+    m_ModelTextureID = -1;
+
     m_Name = "DELETED MESH";
 
     if (m_VertexBuffer != nullptr)
@@ -47,6 +52,16 @@ Mesh::~Mesh()
 const std::string& Mesh::GetName() const
 {
     return m_Name;
+}
+
+const int& Mesh::GetMaterialID() const
+{
+    return m_ModelMaterialID;
+}
+
+const int& Mesh::GetTextureID() const
+{
+    return m_ModelTextureID;
 }
 
 const ID3D12Resource* Mesh::GetVertexBuffer() const

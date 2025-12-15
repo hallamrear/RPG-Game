@@ -11,6 +11,6 @@ VS_STANDARD_VERTEX_OUTPUT main(VS_STANDARD_VERTEX_INPUT input)
     output.NormalW = mul(float4(input.Normal, 1.0f), World).xyz;
     output.Tangent = input.Tangent;
     output.TangentW = mul(float4(input.Tangent, 1.0f), World).xyz;
-    output.UV = float2(1.0f - input.UV.x, input.UV.y);
+    output.UV = float2(input.UV.x, input.UV.y);
     return output;
 }

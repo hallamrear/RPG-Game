@@ -8,7 +8,7 @@ struct ID3D12Resource;
 class TextureLoader
 {
 private:
-	static std::unordered_map<std::string, ID3D12Resource*> m_TextureMap;
+	static std::unordered_map<std::string, Texture*> m_TextureMap;
 	static bool IsTextureLoaded(const std::string& filename);
 	static bool LoadExistingResourceFromMap(Texture& texture, const std::string& path);
 	

@@ -784,7 +784,7 @@ HRESULT Renderer::SetupInitialViewportAndScissorRect()
     m_CommandList->RSSetScissorRects(1, &m_ScissorRect);
 
     DirectX::XMStoreFloat4x4(&m_ViewMatrix, DirectX::XMMatrixTranspose(DirectX::XMMatrixLookAtLH({ 0.0f, 1.0f, -5.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f })));
-    DirectX::XMStoreFloat4x4(&m_ProjectionMatrix, DirectX::XMMatrixTranspose(DirectX::XMMatrixPerspectiveFovLH(70.0f, 1920.0f / 1080.0f, 1.0f, 1000.0f)));
+    DirectX::XMStoreFloat4x4(&m_ProjectionMatrix, DirectX::XMMatrixTranspose(DirectX::XMMatrixPerspectiveFovLH(90.0f * (3.1415926535f / 180.0f), 1920.0f / 1080.0f, DEFAULT_NEAR_PLANE, DEFAULT_FAR_PLANE)));
 
     return S_OK;
 }
@@ -1296,6 +1296,20 @@ void Renderer::DestroyGraphicsPipelines()
     {
         m_DefaultPipeline->Release();
         m_DefaultPipeline = nullptr;
+    }
+}
+
+HRESULT Renderer::CreateNullDescriptors()
+{
+    return E_NOTIMPL;
+}
+
+void Renderer::DestroyNullDescriptors()
+{
+    if (m_NullTextureDescriptor != nullptr)
+    {
+        m_NullTextureDescriptor->Release();
+        m_NullTextureDescriptor = nullptr;
     }
 }
 

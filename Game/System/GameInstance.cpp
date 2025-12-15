@@ -49,7 +49,7 @@ bool GameInstance::Initialise(const HWND& windowHandle)
 	m_IsInitalised &= Renderer::Initialise(m_Renderer, windowHandle);
 
 	m_World = new World();
-	m_IsInitalised &= SceneLoader::LoadSceneFromFileIntoWorld(m_Renderer, *m_World, "Resources/SceneLoaderTest.gltf");
+	m_IsInitalised &= SceneLoader::LoadSceneFromFileIntoWorld(m_Renderer, *m_World, "Resources/Map/Map.gltf");
 
 	m_ConstantBuffer = new ConstantBuffer();
 	DirectX::XMStoreFloat4x4(&m_ConstantBuffer->View, DirectX::XMMatrixIdentity());
@@ -127,7 +127,7 @@ void GameInstance::Update(const float& deltaTime)
 		return;
 
 
-	DirectX::XMFLOAT3 pos = DirectX::XMFLOAT3(sinf(timer) * 35.0f, 35.0f, cosf(timer) * 35.0f);
+	DirectX::XMFLOAT3 pos = DirectX::XMFLOAT3(sinf(timer) * 550.0f, 200.0f, cosf(timer) * 550.0f);
 	DirectX::XMFLOAT3 zero = DirectX::XMFLOAT3(0.0f, 5.0f, 0.0f);
 	DirectX::XMFLOAT3 dir = DirectX::XMFLOAT3(zero.x - pos.x, zero.y - pos.y, zero.z - pos.z);
 	DirectX::XMFLOAT3 up = DirectX::XMFLOAT3(0.0f, 1.0f, 0.0f);

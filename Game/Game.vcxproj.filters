@@ -96,6 +96,21 @@
     <Image Include="Resources\Orange\texture_12.png">
       <Filter>Resource Files</Filter>
     </Image>
+    <Image Include="Resources\colormap-10.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="Resources\colormap.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="Resources\Map\texture_01.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="Resources\colormap-19.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="Resources\colormap-5.png">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
   <ItemGroup>
     <None Include="Resources\Test_Model.gltf" />
@@ -112,6 +127,10 @@
     </None>
     <None Include="Resources\SceneLoaderTest.gltf" />
     <None Include="Resources\SceneLoaderTest.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Resources\StressTest.gltf" />
+    <None Include="Resources\StressTest.bin">
       <Filter>Resource Files</Filter>
     </None>
   </ItemGroup>

@@ -8,7 +8,7 @@
 #include <Graphics/Renderer.h>
 #include <System/Debug.h>
 
-std::unordered_map<std::string, ID3D12Resource*> TextureLoader::m_TextureMap = std::unordered_map<std::string, ID3D12Resource*>();
+std::unordered_map<std::string, Texture*> TextureLoader::m_TextureMap = std::unordered_map<std::string, Texture*>();
 
 bool TextureLoader::IsTextureLoaded(const std::string& filename)
 {
@@ -111,7 +111,7 @@ bool TextureLoader::LoadFromData(Renderer& renderer, Texture& texture, const std
 		texture.m_IsLoaded = true;
 		texture.m_ID = m_TextureMap.size();
 		texture.m_SRVHandle = srvGpuHandle;
-		m_TextureMap.insert({ referenceName, texture.m_Resource});		
+		m_TextureMap.insert({ referenceName, &texture });		
 	}
 
 	return texture.m_IsLoaded;
@@ -119,7 +119,7 @@ bool TextureLoader::LoadFromData(Renderer& renderer, Texture& texture, const std
 
 bool TextureLoader::LoadExistingResourceFromMap(Texture& texture, const std::string& path)
 {
-	std::unordered_map<std::string, ID3D12Resource*>::iterator itr = m_TextureMap.find(path);
+	std::unordered_map<std::string, Texture*>::iterator itr = m_TextureMap.find(path);
 
 	if (itr == m_TextureMap.end())
 	{
@@ -127,20 +127,9 @@ bool TextureLoader::LoadExistingResourceFromMap(Texture& texture, const std::str
 		return false;
 	}
 
-	ID3D12Resource* resource = nullptr;
-	HRESULT hr = itr->second->QueryInterface(&resource);
+	texture = *itr->second;
 
-	if (SUCCEEDED(hr))
-	{
-		D3D12_RESOURCE_DESC desc = resource->GetDesc();
-		texture.m_Width = desc.Width;
-		texture.m_Height = desc.Height;
-		texture.m_Resource = itr->second;
-		texture.m_IsLoaded = true;
-		return true;
-	}
-	
-	return false;
+	return true;
 }
 
 bool TextureLoader::LoadFromFile(Renderer& renderer, Texture& texture, const std::string& path)
@@ -160,13 +149,13 @@ bool TextureLoader::LoadFromFile(Renderer& renderer, Texture& texture, const std
 
 	if (!imageFile.good())
 	{
-		Debug::LogSevere("Failed to load texture from file %s.\n", path);
+		Debug::LogSevere("Failed to load texture from file %s.\n", path.c_str());
 		return false;
 	}
 
 	if (!imageFile.is_open())
 	{
-		Debug::LogSevere("Failed to load texture from file %s.\n", path);
+		Debug::LogSevere("Failed to load texture from file %s.\n", path.c_str());
 		return false;
 	}
 
@@ -179,7 +168,7 @@ bool TextureLoader::LoadFromFile(Renderer& renderer, Texture& texture, const std
 	
 	if (buffer == nullptr)
 	{
-		Debug::LogSevere("Failed to load texture from file %s.\n", path);
+		Debug::LogSevere("Failed to load texture from file %s.\n", path.c_str());
 		delete[] buffer;
 		buffer = nullptr;
 		return false;

@@ -16,15 +16,17 @@ private:
 	DirectX::XMFLOAT3 m_MaxPosition;
 	DirectX::XMFLOAT3 m_MinPosition;
 
-	ID3D12Resource* m_VertexBuffer;
-	D3D12_VERTEX_BUFFER_VIEW m_VertexBufferView;
+	int m_ModelMaterialID;
+	int m_ModelTextureID;
 
+	bool m_UsesIndexBuffer;
+	size_t m_IndexCount;
 	ID3D12Resource* m_IndexBuffer;
 	D3D12_INDEX_BUFFER_VIEW m_IndexBufferView;
 
-	bool m_UsesIndexBuffer;
 	size_t m_VertexCount;
-	size_t m_IndexCount;
+	ID3D12Resource* m_VertexBuffer;
+	D3D12_VERTEX_BUFFER_VIEW m_VertexBufferView;
 
 protected:
 
@@ -33,6 +35,9 @@ public:
 	~Mesh();
 
 	const std::string& GetName() const;
+
+	const int& GetMaterialID() const;
+	const int& GetTextureID() const;
 
 	const ID3D12Resource* GetVertexBuffer() const;
 	const D3D12_VERTEX_BUFFER_VIEW& GetVertexBufferView() const;
