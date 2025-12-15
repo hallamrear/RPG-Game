@@ -126,6 +126,8 @@ bool SceneLoader::LoadSceneFromGLTF(Renderer& renderer, World& world, tinygltf::
 
         if (model.nodes[i].matrix.size() == 16)
         {
+            //Should copy 16 floats.
+            memcpy(&localMatrix, model.nodes[i].matrix.data(), sizeof(float) * model.nodes[i].matrix.size());
         }
         else
         {
