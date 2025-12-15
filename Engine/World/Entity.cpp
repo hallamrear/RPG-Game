@@ -43,10 +43,9 @@ void Entity::SetName(const std::string& name)
 	m_Name = name;
 }
 
-void Entity::TEMP_setmodel(Renderer& renderer)
+void Entity::SetModel(const Model* model)
 {
-	m_Model = new Model();
-	GeometryLoader::Load(renderer, *m_Model, "Resources/OSRS_Model.gltf");
+	m_Model = model;
 }
 
 const DirectX::XMFLOAT4X4& Entity::GetLocalMatrix() const
@@ -109,6 +108,6 @@ void Entity::Render(Renderer& renderer) const
 		renderer.UpdateMaterialBuffer(m_Material);
 		renderer.UpdateWorldMatrix(worldMatrix);
 
-		m_Model->TestRender(renderer);
+		m_Model->Render(renderer);
 	}
 }

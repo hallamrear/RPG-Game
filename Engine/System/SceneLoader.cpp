@@ -4,6 +4,8 @@
 #include <World/Entity.h>
 #include <System/Debug.h>
 #include <System/FileLoadingIncludes.h>
+#include <System/GeometryLoader.h>
+#include <Graphics/Geometry/Model.h>
 
 bool SceneLoader::LoadSceneFromFileIntoWorld(Renderer& renderer, World& world, const std::string& path)
 {
@@ -73,9 +75,9 @@ void SceneLoader::Destroy(World& world)
     
 }
 
-bool SceneLoader::LoadSceneFromGLTF(Renderer& renderer, World& world, tinygltf::Model& model)
+bool SceneLoader::LoadSceneFromGLTF(Renderer& renderer, World& world, tinygltf::Model& gltfModel)
 {
-    size_t sceneCount = model.scenes.size();
+    size_t sceneCount = gltfModel.scenes.size();
     Debug::LogMessage("Found %i scenes.\n", sceneCount);
 
     if (sceneCount <= 0)
@@ -84,7 +86,7 @@ bool SceneLoader::LoadSceneFromGLTF(Renderer& renderer, World& world, tinygltf::
         return false;
     }
 
-    size_t nodeCount = model.nodes.size();
+    size_t nodeCount = gltfModel.nodes.size();
     Debug::LogMessage("Found %i nodes.\n", nodeCount);
 
     if (nodeCount <= 0)
@@ -100,9 +102,9 @@ bool SceneLoader::LoadSceneFromGLTF(Renderer& renderer, World& world, tinygltf::
     {
         world.m_Entities.push_back(new Entity());
         Entity& entity = *world.m_Entities.back();
-        entity.SetName(model.nodes[i].name);
+        entity.SetName(gltfModel.nodes[i].name);
 
-        if (model.nodes[i].children.size() > 0)
+        if (gltfModel.nodes[i].children.size() > 0)
         {
             nodesWithChildren.push_back(i);
         }
@@ -110,10 +112,10 @@ bool SceneLoader::LoadSceneFromGLTF(Renderer& renderer, World& world, tinygltf::
         DirectX::XMFLOAT4X4 localMatrix;
         DirectX::XMStoreFloat4x4(&localMatrix, DirectX::XMMatrixIdentity());
 
-        if (model.nodes[i].matrix.size() == 16)
+        if (gltfModel.nodes[i].matrix.size() == 16)
         {
             //Should copy 16 floats.
-            memcpy(&localMatrix, model.nodes[i].matrix.data(), sizeof(float) * model.nodes[i].matrix.size());
+            memcpy(&localMatrix, gltfModel.nodes[i].matrix.data(), sizeof(float) * gltfModel.nodes[i].matrix.size());
         }
         else
         {
@@ -121,26 +123,26 @@ bool SceneLoader::LoadSceneFromGLTF(Renderer& renderer, World& world, tinygltf::
             DirectX::XMFLOAT3 translation = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
             DirectX::XMFLOAT4 rotation = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
 
-            if (model.nodes[i].scale.size() == 3)
+            if (gltfModel.nodes[i].scale.size() == 3)
             {
-                scale.x = model.nodes[i].scale[0];
-                scale.y = model.nodes[i].scale[1];
-                scale.z = model.nodes[i].scale[2];
+                scale.x = gltfModel.nodes[i].scale[0];
+                scale.y = gltfModel.nodes[i].scale[1];
+                scale.z = gltfModel.nodes[i].scale[2];
             }
 
-            if (model.nodes[i].rotation.size() == 4)
+            if (gltfModel.nodes[i].rotation.size() == 4)
             {
-                rotation.x = model.nodes[i].rotation[0];
-                rotation.y = model.nodes[i].rotation[1];
-                rotation.z = model.nodes[i].rotation[2];
-                rotation.w = model.nodes[i].rotation[3];
+                rotation.x = gltfModel.nodes[i].rotation[0];
+                rotation.y = gltfModel.nodes[i].rotation[1];
+                rotation.z = gltfModel.nodes[i].rotation[2];
+                rotation.w = gltfModel.nodes[i].rotation[3];
             }
 
-            if (model.nodes[i].translation.size() == 3)
+            if (gltfModel.nodes[i].translation.size() == 3)
             {
-                translation.x = model.nodes[i].translation[0];
-                translation.y = model.nodes[i].translation[1];
-                translation.z = model.nodes[i].translation[2];
+                translation.x = gltfModel.nodes[i].translation[0];
+                translation.y = gltfModel.nodes[i].translation[1];
+                translation.z = gltfModel.nodes[i].translation[2];
             }
 
             DirectX::XMStoreFloat4x4(&localMatrix, 
@@ -150,6 +152,31 @@ bool SceneLoader::LoadSceneFromGLTF(Renderer& renderer, World& world, tinygltf::
         }
 
         entity.SetLocalMatrix(localMatrix);
+
+        if (gltfModel.nodes[i].mesh != -1)
+        {
+            Model* model = new Model();
+
+            bool loadedMesh = GeometryLoader::LoadGeometryFromGLTFMesh(renderer, *model, gltfModel, gltfModel.nodes[i].mesh);
+
+            if (loadedMesh)
+            {
+                if (model != nullptr)
+                {
+                    entity.SetModel(model);
+                }
+            }
+            else
+            {
+                Debug::LogSevere("Failed to load expected mesh from gltf file.\n");
+
+                if (model)
+                {
+                    delete model;
+                    model = nullptr;
+                }
+            }
+        }
     }
 
     int parentNodeIndex = -1;
@@ -160,12 +187,12 @@ bool SceneLoader::LoadSceneFromGLTF(Renderer& renderer, World& world, tinygltf::
     for (size_t c = 0; c < nodesWithChildren.size(); c++)
     {
         int parentNodeIndex = nodesWithChildren[c];
-        size_t childCount = model.nodes[parentNodeIndex].children.size();
+        size_t childCount = gltfModel.nodes[parentNodeIndex].children.size();
 
         for (size_t i = 0; i < childCount; i++)
         {
             parentWorldIndex = preloadEntityIndex + parentNodeIndex;
-            childWorldIndex = preloadEntityIndex + model.nodes[parentNodeIndex].children[i];
+            childWorldIndex = preloadEntityIndex + gltfModel.nodes[parentNodeIndex].children[i];
             parent = world.m_Entities[parentWorldIndex];
             child = world.m_Entities[childWorldIndex];
 

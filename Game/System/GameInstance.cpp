@@ -54,7 +54,6 @@ bool GameInstance::Initialise(const HWND& windowHandle)
 	m_ConstantBuffer = new ConstantBuffer();
 	DirectX::XMStoreFloat4x4(&m_ConstantBuffer->View, DirectX::XMMatrixIdentity());
 	DirectX::XMStoreFloat4x4(&m_ConstantBuffer->Projection, DirectX::XMMatrixIdentity());
-	m_Renderer.UpdateConstantBuffer(*m_ConstantBuffer);
 
 	m_LightBuffer = new LightBuffer();
 
@@ -79,8 +78,6 @@ bool GameInstance::Initialise(const HWND& windowHandle)
 		m_LightBuffer->LightData[i].OuterCutoff = 0.82f;
 		m_LightBuffer->LightData[i].Strength = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	}
-
-	m_Renderer.UpdateLightingBuffer(*m_LightBuffer);
 	
 	//Setting to closed as the first reference to the command list will open it.
 	if (m_Renderer.GetCommandList())

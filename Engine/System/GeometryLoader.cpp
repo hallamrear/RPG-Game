@@ -13,15 +13,26 @@ bool GeometryLoader::CreateModelFromGLTF(Renderer& renderer, Model& model, tinyg
 {
     bool loadedOk = true;
 
-    loadedOk &= LoadGeometryFromGLTF(renderer, model, gltfModel);
+    for (size_t i = 0; i < gltfModel.meshes.size(); i++)
+    {
+        loadedOk &= LoadGeometryFromGLTFMesh(renderer, model, gltfModel, i);
+    }
+
     loadedOk &= LoadTexturesFromGLTF(renderer, model, gltfModel, parentPath);
 
     return loadedOk;
 }
 
-bool GeometryLoader::LoadGeometryFromGLTF(Renderer& renderer, Model& model, tinygltf::Model& gltfModel)
+bool GeometryLoader::LoadGeometryFromGLTFMesh(Renderer& renderer, Model& model, tinygltf::Model& gltfModel, const int& meshIndex)
 {
-    size_t meshCount = gltfModel.meshes.size();
+    if (meshIndex < 0 || meshIndex > gltfModel.meshes.size())
+    {
+        Debug::LogWarning("Invalid mesh index\n");
+        return false;
+    }
+
+    tinygltf::Mesh& gltfMesh = gltfModel.meshes[meshIndex];
+
     size_t primitiveCount = 0;
     size_t primitiveTargetCount = 0;
     size_t primitiveAttributeCount = 0;
@@ -34,88 +45,82 @@ bool GeometryLoader::LoadGeometryFromGLTF(Renderer& renderer, Model& model, tiny
     DirectX::XMFLOAT3 max = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
     DirectX::XMFLOAT3 min = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
 
+    primitiveCount = gltfModel.meshes[meshIndex].primitives.size();
+    primitiveTargetCount = 0;
 
-    for (size_t i = 0; i < meshCount; i++)
+    vertices.clear();
+    indices.clear();
+    weights.clear();
+    joints.clear();
+
+    for (size_t p = 0; p < primitiveCount; p++)
     {
-        tinygltf::Mesh& gltfMesh = gltfModel.meshes[i];
-        
-        primitiveCount = gltfModel.meshes[i].primitives.size();
-        primitiveTargetCount = 0;
-
-        vertices.clear();
-        indices.clear();
-        weights.clear();
-        joints.clear();
-
-        for (size_t p = 0; p < primitiveCount; p++)
+        tinygltf::Primitive& primitive = gltfMesh.primitives[p];
+            
+        switch (primitive.mode)
         {
-            tinygltf::Primitive& primitive = gltfMesh.primitives[p];
+        case TINYGLTF_MODE_POINTS: { foundTopology = D3D12_PRIMITIVE_TOPOLOGY::D3D_PRIMITIVE_TOPOLOGY_POINTLIST; } break;
+        case TINYGLTF_MODE_LINE: { foundTopology = D3D12_PRIMITIVE_TOPOLOGY::D3D_PRIMITIVE_TOPOLOGY_LINELIST; } break;
+        case TINYGLTF_MODE_LINE_STRIP: { foundTopology = D3D12_PRIMITIVE_TOPOLOGY::D3D_PRIMITIVE_TOPOLOGY_LINESTRIP; } break;
+        case TINYGLTF_MODE_TRIANGLES: { foundTopology = D3D12_PRIMITIVE_TOPOLOGY::D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST; } break;
+        case TINYGLTF_MODE_TRIANGLE_STRIP: { foundTopology = D3D12_PRIMITIVE_TOPOLOGY::D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP; } break;
+        case TINYGLTF_MODE_TRIANGLE_FAN: { foundTopology = D3D12_PRIMITIVE_TOPOLOGY::D3D_PRIMITIVE_TOPOLOGY_TRIANGLEFAN; } break;
             
-            switch (primitive.mode)
-            {
-            case TINYGLTF_MODE_POINTS: { foundTopology = D3D12_PRIMITIVE_TOPOLOGY::D3D_PRIMITIVE_TOPOLOGY_POINTLIST; } break;
-            case TINYGLTF_MODE_LINE: { foundTopology = D3D12_PRIMITIVE_TOPOLOGY::D3D_PRIMITIVE_TOPOLOGY_LINELIST; } break;
-            case TINYGLTF_MODE_LINE_STRIP: { foundTopology = D3D12_PRIMITIVE_TOPOLOGY::D3D_PRIMITIVE_TOPOLOGY_LINESTRIP; } break;
-            case TINYGLTF_MODE_TRIANGLES: { foundTopology = D3D12_PRIMITIVE_TOPOLOGY::D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST; } break;
-            case TINYGLTF_MODE_TRIANGLE_STRIP: { foundTopology = D3D12_PRIMITIVE_TOPOLOGY::D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP; } break;
-            case TINYGLTF_MODE_TRIANGLE_FAN: { foundTopology = D3D12_PRIMITIVE_TOPOLOGY::D3D_PRIMITIVE_TOPOLOGY_TRIANGLEFAN; } break;
-            
-            case TINYGLTF_MODE_LINE_LOOP:
-            default:
-                Debug::LogSevere("Unsupported primitive topology in gltf file.\n");
-                return false;
-                break;
-            }
-
-            int indicesBufferIndex = primitive.indices;
-
-            bool usesIndexBuffer = (indicesBufferIndex > 0);
-
-            primitiveAttributeCount = primitive.attributes.size();
-            
-            if (primitiveAttributeCount <= 0)
-            {
-                Debug::LogSevere("No primitive attributes found.\n");
-                return false;
-            }
-
-            bool loadedVertices = GetVertexDataFromGLTFPrimitive(vertices, gltfModel, primitive, max, min);
-
-            if (loadedVertices == false)
-            {
-                Debug::LogSevere("Failed to load vertices from gltf model.\n");
-                return false;
-            }
-
-            bool loadedIndices = false;
-            if (usesIndexBuffer)
-            {
-                loadedIndices = GetIndexDataFromGLTFPrimitive(indices, gltfModel, primitive);
-            }
-
-            if (loadedIndices == false)
-            {
-                Debug::LogWarning("Loading a gltf model that does not seem to use indices.\n");
-            }
+        case TINYGLTF_MODE_LINE_LOOP:
+        default:
+            Debug::LogSevere("Unsupported primitive topology in gltf file.\n");
+            return false;
+            break;
         }
 
-        Mesh* mesh = CreateMeshFromData(renderer, model, vertices, indices);
+        int indicesBufferIndex = primitive.indices;
 
-        if (mesh == nullptr)
+        bool usesIndexBuffer = (indicesBufferIndex > 0);
+
+        primitiveAttributeCount = primitive.attributes.size();
+            
+        if (primitiveAttributeCount <= 0)
         {
-            Debug::LogSevere("Failed to load mesh data from gltf.\n");
+            Debug::LogSevere("No primitive attributes found.\n");
             return false;
         }
 
-        mesh->m_TopologyType = foundTopology;
-        mesh->m_MaxPosition = max;
-        mesh->m_MinPosition = min;
-        mesh->m_Name = gltfModel.meshes[i].name;
+        bool loadedVertices = GetVertexDataFromGLTFPrimitive(vertices, gltfModel, primitive, max, min);
 
-        primitiveCount = 0;
-        max = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
-        min = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
+        if (loadedVertices == false)
+        {
+            Debug::LogSevere("Failed to load vertices from gltf model.\n");
+            return false;
+        }
+
+        bool loadedIndices = false;
+        if (usesIndexBuffer)
+        {
+            loadedIndices = GetIndexDataFromGLTFPrimitive(indices, gltfModel, primitive);
+        }
+
+        if (loadedIndices == false)
+        {
+            Debug::LogWarning("Loading a gltf model that does not seem to use indices.\n");
+        }
     }
+
+    Mesh* mesh = CreateMeshFromData(renderer, model, vertices, indices);
+
+    if (mesh == nullptr)
+    {
+        Debug::LogSevere("Failed to load mesh data from gltf.\n");
+        return false;
+    }
+
+    mesh->m_TopologyType = foundTopology;
+    mesh->m_MaxPosition = max;
+    mesh->m_MinPosition = min;
+    mesh->m_Name = gltfModel.meshes[meshIndex].name;
+
+    primitiveCount = 0;
+    max = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
+    min = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
 
     return true;
 }

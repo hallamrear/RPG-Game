@@ -24,7 +24,7 @@ Model::~Model()
 }
 
 #include <Graphics/Renderer.h>
-void Model::TestRender(Renderer& renderer)
+void Model::Render(Renderer& renderer) const
 {
 	if (m_Textures.size() > 0)
 	{
