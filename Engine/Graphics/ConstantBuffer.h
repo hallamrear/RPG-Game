@@ -11,25 +11,24 @@
 class ConstantBuffer
 {
 public:
-	DirectX::XMFLOAT4X4 World;
 	DirectX::XMFLOAT4X4 View;
 	DirectX::XMFLOAT4X4 Projection;
 	DirectX::XMFLOAT4 CameraPosition;
 	DirectX::XMFLOAT4 CameraDirection;
-	DirectX::XMFLOAT4 Padding[2];
+	DirectX::XMFLOAT4 Padding[6];
 
 	ConstantBuffer();
 	~ConstantBuffer();
+};
+
+class PushConstants
+{
+	/* 16x 32bit floats */ DirectX::XMFLOAT4X4 World;
+	/* 8x  32bit floats */ Material MaterialData;
 };
 
 class LightBuffer
 {
 public:
 	Light LightData[MAX_LIGHT_COUNT];
-};
-
-class MaterialBuffer
-{
-public:
-	Material MaterialData;
 };

@@ -56,8 +56,6 @@ Renderer::Renderer()
     m_ConstantBufferGPUUploaderArray = new ID3D12Resource*[m_SwapChainBufferCount];
     m_LightBufferAddressArray = new char* [m_SwapChainBufferCount];
     m_LightBufferGPUUploaderArray = new ID3D12Resource * [m_SwapChainBufferCount];
-    m_MaterialBufferAddressArray = new char* [m_SwapChainBufferCount];
-    m_MaterialBufferGPUUploaderArray = new ID3D12Resource * [m_SwapChainBufferCount];
 
     for (size_t i = 0; i < m_SwapChainBufferCount; i++)
     {
@@ -65,8 +63,6 @@ Renderer::Renderer()
         m_ConstantBufferAddressArray[i] = nullptr;
         m_LightBufferAddressArray[i] = nullptr;
         m_LightBufferGPUUploaderArray[i] = nullptr;
-        m_MaterialBufferAddressArray[i] = nullptr;
-        m_MaterialBufferGPUUploaderArray[i] = nullptr;
         m_CBVHeaps[i] = nullptr;
     }
 
@@ -100,18 +96,6 @@ Renderer::~Renderer()
     {
         delete[] m_LightBufferAddressArray;
         m_LightBufferAddressArray = nullptr;
-    }
-
-    if (m_MaterialBufferGPUUploaderArray != nullptr)
-    {
-        delete[] m_MaterialBufferGPUUploaderArray;
-        m_MaterialBufferGPUUploaderArray = nullptr;
-    }
-
-    if (m_MaterialBufferAddressArray != nullptr)
-    {
-        delete[] m_MaterialBufferAddressArray;
-        m_MaterialBufferAddressArray = nullptr;
     }
 
     if (m_CBVHeaps != nullptr)
@@ -927,44 +911,6 @@ HRESULT Renderer::CreateConstantBuffers()
         }
 
         memcpy(m_LightBufferAddressArray[i], &emptyLb, sizeof(LightBuffer));
-
-        //--------------------------------------------------------------------//
-
-        //Creating per-frame material buffer.
-        result = m_Device->CreateCommittedResource(
-            &uploadHeapProperties,
-            D3D12_HEAP_FLAG_NONE,
-            &resourceDesc,
-            D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_GENERIC_READ,
-            nullptr,
-            IID_PPV_ARGS(&m_MaterialBufferGPUUploaderArray[i]));
-
-        if (FAILED(result))
-        {
-            Debug::LogSevere("Failed to create committed resource for material buffer's GPU upload buffer.\n");
-            return result;
-        }
-
-        name = L"Material Buffer GPU Upload Heap " + std::to_wstring(i);
-        m_MaterialBufferGPUUploaderArray[i]->SetName(name.c_str());
-
-        D3D12_CONSTANT_BUFFER_VIEW_DESC mbvDesc{};
-        mbvDesc.BufferLocation = m_MaterialBufferGPUUploaderArray[i]->GetGPUVirtualAddress();
-        mbvDesc.SizeInBytes = (sizeof(MaterialBuffer) + 255) & ~255;
-
-        CD3DX12_CPU_DESCRIPTOR_HANDLE mbHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_CBVHeaps[i]->GetCPUDescriptorHandleForHeapStart());
-        mbHandle.Offset(2, m_CBVSRVDescriptorHeapSize);
-        m_Device->CreateConstantBufferView(&mbvDesc, mbHandle);
-
-        result = m_MaterialBufferGPUUploaderArray[i]->Map(0, &readRange, reinterpret_cast<void**>(&m_MaterialBufferAddressArray[i]));
-
-        if (FAILED(result) || m_MaterialBufferAddressArray[i] == nullptr)
-        {
-            Debug::LogSevere("Failed to map material buffer's GPU upload heap address.\n");
-            return result;
-        }
-
-        memcpy(m_MaterialBufferAddressArray[i], &emptyMb, sizeof(MaterialBuffer));
     }
 
     return S_OK;
@@ -999,25 +945,13 @@ void Renderer::DestroyConstantBuffers()
         {
             m_LightBufferAddressArray[i] = nullptr;
         }
-
-        if (m_MaterialBufferGPUUploaderArray[i] != nullptr)
-        {
-            m_MaterialBufferGPUUploaderArray[i]->Unmap(0, &readRange);
-            m_MaterialBufferGPUUploaderArray[i]->Release();
-            m_MaterialBufferGPUUploaderArray[i] = nullptr;
-        }
-
-        if (m_MaterialBufferAddressArray[i] != nullptr)
-        {
-            m_MaterialBufferAddressArray[i] = nullptr;
-        }
     }
 }
 
 HRESULT Renderer::CreateConstantBufferHeap()
 {
     D3D12_DESCRIPTOR_HEAP_DESC heapDesc{};
-    heapDesc.NumDescriptors = 3;
+    heapDesc.NumDescriptors = 2;
     heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
     heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
     heapDesc.NodeMask = 0;
@@ -1073,13 +1007,18 @@ HRESULT Renderer::CreateRootSignatureAndDescriptorTable()
     slotRootParameters[1].Descriptor = lightingConstantBufferDescriptor;
     slotRootParameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY::D3D12_SHADER_VISIBILITY_ALL;
 
-    //Material Constant Buffer
-    D3D12_ROOT_DESCRIPTOR materialConstantBufferDescriptor{};
-    materialConstantBufferDescriptor.RegisterSpace = 0;
-    materialConstantBufferDescriptor.ShaderRegister = 2;
-    slotRootParameters[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-    slotRootParameters[2].Descriptor = materialConstantBufferDescriptor;
+    //Push Constants
+    D3D12_ROOT_CONSTANTS rootConstants{};
+    rootConstants.Num32BitValues = 24;
+    rootConstants.RegisterSpace = 0;
+    rootConstants.ShaderRegister = 2;
+    D3D12_ROOT_DESCRIPTOR pushConstantDescriptor{};
+    pushConstantDescriptor.RegisterSpace = 0;
+    pushConstantDescriptor.ShaderRegister = 2;
+    slotRootParameters[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE::D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+    slotRootParameters[2].Descriptor = pushConstantDescriptor;
     slotRootParameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY::D3D12_SHADER_VISIBILITY_ALL;
+    slotRootParameters[2].Constants = rootConstants;
 
     //SRV Table
     D3D12_DESCRIPTOR_RANGE descriptorTableRange[1]{};
@@ -1494,21 +1433,22 @@ void Renderer::SetClearColour(const DirectX::XMFLOAT4& newColour)
     m_ClearColour = newColour;
 }
 
-HRESULT Renderer::UpdateMaterialBuffer(MaterialBuffer& mb)
+HRESULT Renderer::UpdateWorldMatrix(const DirectX::XMFLOAT4X4& worldMatrix)
 {
     CUSTOM_ASSERT(m_IsInitialised);
 
-    if (m_MaterialBufferAddressArray[m_CurrentBackbufferIndex] != nullptr)
-    {
-        m_CommandList->SetGraphicsRootConstantBufferView(2, m_MaterialBufferGPUUploaderArray[m_CurrentBackbufferIndex]->GetGPUVirtualAddress());
-        memcpy(m_MaterialBufferAddressArray[m_CurrentBackbufferIndex], &mb, sizeof(MaterialBuffer));
-        return S_OK;
-    }
+    m_CommandList->SetComputeRoot32BitConstants()
 
-    return E_FAIL;
+    return E_NOTIMPL;
 }
 
-HRESULT Renderer::UpdateLightingBuffer(LightBuffer& lb)
+HRESULT Renderer::UpdateMaterialBuffer(const Material& mb)
+{
+    CUSTOM_ASSERT(m_IsInitialised);
+    return E_NOTIMPL;
+}
+
+HRESULT Renderer::UpdateLightingBuffer(const LightBuffer& lb)
 {
     CUSTOM_ASSERT(m_IsInitialised);
 
@@ -1522,7 +1462,7 @@ HRESULT Renderer::UpdateLightingBuffer(LightBuffer& lb)
     return E_FAIL;
 }
 
-HRESULT Renderer::UpdateConstantBuffer(ConstantBuffer& cb, const int& index)
+HRESULT Renderer::UpdateConstantBuffer(const ConstantBuffer& cb, const int& index)
 {
     CUSTOM_ASSERT(m_IsInitialised);
 

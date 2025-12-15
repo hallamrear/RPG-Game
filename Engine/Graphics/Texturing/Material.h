@@ -7,11 +7,9 @@ public:
 	DirectX::XMFLOAT4 BaseColour;
 	float Metalness;
 	float Roughness;
+	float Padding[2];
 
 	Material();
 	~Material();
-
-private:
-	float Padding[58];
 };
 

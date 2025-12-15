@@ -77,8 +77,6 @@ private:
 	ID3D12Resource** m_ConstantBufferGPUUploaderArray;
 	char** m_LightBufferAddressArray;
 	ID3D12Resource** m_LightBufferGPUUploaderArray;
-	char** m_MaterialBufferAddressArray;
-	ID3D12Resource** m_MaterialBufferGPUUploaderArray;
 	HRESULT CreateConstantBuffers();
 	void DestroyConstantBuffers();
 
@@ -134,9 +132,10 @@ public:
 	const DirectX::XMFLOAT4& GetClearColour() const;
 	void SetClearColour(const DirectX::XMFLOAT4& newColour);
 
-	HRESULT UpdateMaterialBuffer(MaterialBuffer& mb);
-	HRESULT UpdateLightingBuffer(LightBuffer& lb);
-	HRESULT UpdateConstantBuffer(ConstantBuffer& cb, const int& index);
+	HRESULT UpdateWorldMatrix(const DirectX::XMFLOAT4X4& worldMatrix);
+	HRESULT UpdateMaterialBuffer(const Material& mb);
+	HRESULT UpdateLightingBuffer(const LightBuffer& lb);
+	HRESULT UpdateConstantBuffer(const ConstantBuffer& cb, const int& index);
 
 	static bool Initialise(Renderer& renderer, const HWND& windowHandle);
 	static void Shutdown(Renderer& renderer);

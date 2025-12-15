@@ -3,14 +3,19 @@
 
 #include <../../Defines.h>
 
-cbuffer PerObjectBuffer : register(b0)
+cbuffer PerFrameConstantBuffer : register(b0)
 {
-    float4x4 World;
     float4x4 View;
     float4x4 Projection;
     float4 CameraPositionW;
     float4 CameraDirectionW;
     float4 Padding[2];
+    
+};
+
+cbuffer PerObjectConstantBuffer : register(b1)
+{
+    float4x4 World;
 };
 
 struct Light
@@ -29,7 +34,7 @@ struct Light
 	float4 Padding[8];
 };
 
-cbuffer LightingBuffer : register(b1)
+cbuffer LightingBuffer : register(b2)
 {
     Light LightData[MAX_LIGHT_COUNT];
 };
@@ -40,11 +45,6 @@ struct Material
     float Metalness;
     float Roughness;
 	float Padding[58];
-};
-
-cbuffer MaterialBuffer : register(b2)
-{
-    Material MaterialData;
 };
 
 struct VS_STANDARD_VERTEX_INPUT

@@ -82,10 +82,10 @@ void Entity::Render(Renderer& renderer, Model& model) const
 		parentMatrix = m_Parent->m_LocalMatrix;
 	}
 
-	ConstantBuffer cb;
-	cb.World = parentMatrix;
-	cb.View = renderer.GetViewMatrix();
-	cb.Projection = renderer.GetProjectionMatrix();
-	renderer.UpdateConstantBuffer(cb, m_ID);
+	DirectX::XMFLOAT4X4 worldMatrix;
+	DirectX::XMStoreFloat4x4(&worldMatrix, DirectX::XMLoadFloat4x4(&parentMatrix) * DirectX::XMLoadFloat4x4(&m_LocalMatrix));
+
+	renderer.UpdateWorldMatrix(worldMatrix);
+
 	model.TestRender(renderer);
 }
