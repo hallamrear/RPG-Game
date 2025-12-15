@@ -11,7 +11,7 @@ private:
 	bool m_IsInitalised;
 	bool m_IsRunning;
 	Renderer m_Renderer;
-	ConstantBuffer* m_ConstantBuffers;
+	ConstantBuffer* m_ConstantBuffer;
 	LightBuffer* m_LightBuffer;
 	World* m_World;
 

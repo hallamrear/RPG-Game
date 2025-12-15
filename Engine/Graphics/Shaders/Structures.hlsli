@@ -28,18 +28,18 @@ cbuffer PerObjectConstantBuffer : register(b1)
 
 struct Light
 {
-	int Type;
-	int Enabled;
-	float InnerCutoff;
-	float OuterCutoff;
-	float4 Position;
-	float4 Direction;
-	float4 Ambient;
-	float4 Diffuse;
-	float4 Specular;
-	float4 Attenuation;
+    int Type;
+    int Enabled;
+    float InnerCutoff;
+    float OuterCutoff;
+    float4 Position;
+    float4 Direction;
+    float4 Ambient;
+    float4 Diffuse;
+    float4 Specular;
+    float4 Attenuation;
     float4 Strength;
-	float4 Padding[8];
+    float4 Padding[8];
 };
 
 cbuffer LightingBuffer : register(b2)

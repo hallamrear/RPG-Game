@@ -19,5 +19,5 @@ public:
 	~World();
 
 	void Update(const float& deltaTime);
-	void Render(Renderer& renderer, Model& model) const;
+	void Render(Renderer& renderer) const;
 };

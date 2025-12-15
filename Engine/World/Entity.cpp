@@ -86,24 +86,29 @@ const int& Entity::GetID() const
 
 void Entity::Update(const float& deltaTime) 
 {
-
+	m_Material.BaseColour.x = (float)rand() / RAND_MAX;
+	m_Material.BaseColour.y = (float)rand() / RAND_MAX;
+	m_Material.BaseColour.z = (float)rand() / RAND_MAX;
 }
 
-void Entity::Render(Renderer& renderer, Model& model) const
+void Entity::Render(Renderer& renderer) const
 {
-	DirectX::XMFLOAT4X4 parentMatrix = DirectX::XMFLOAT4X4();
-	DirectX::XMStoreFloat4x4(&parentMatrix, DirectX::XMMatrixIdentity());
-
-	if (m_Parent != nullptr)
+	if (m_Model != nullptr)
 	{
-		parentMatrix = m_Parent->m_LocalMatrix;
+		DirectX::XMFLOAT4X4 parentMatrix = DirectX::XMFLOAT4X4();
+		DirectX::XMStoreFloat4x4(&parentMatrix, DirectX::XMMatrixIdentity());
+
+		if (m_Parent != nullptr)
+		{
+			parentMatrix = m_Parent->m_LocalMatrix;
+		}
+
+		DirectX::XMFLOAT4X4 worldMatrix;
+		DirectX::XMStoreFloat4x4(&worldMatrix, DirectX::XMMatrixTranspose(DirectX::XMLoadFloat4x4(&parentMatrix) * DirectX::XMLoadFloat4x4(&m_LocalMatrix)));
+
+		renderer.UpdateMaterialBuffer(m_Material);
+		renderer.UpdateWorldMatrix(worldMatrix);
+
+		m_Model->TestRender(renderer);
 	}
-
-	DirectX::XMFLOAT4X4 worldMatrix;
-	DirectX::XMStoreFloat4x4(&worldMatrix, DirectX::XMLoadFloat4x4(&parentMatrix) * DirectX::XMLoadFloat4x4(&m_LocalMatrix));
-
-	renderer.UpdateMaterialBuffer(m_Material);
-	renderer.UpdateWorldMatrix(worldMatrix);
-
-	model.TestRender(renderer);
 }

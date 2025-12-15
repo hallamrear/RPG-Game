@@ -26,10 +26,10 @@ void World::Update(const float& deltaTime)
 	}
 }
 
-void World::Render(Renderer& renderer, Model& model) const
+void World::Render(Renderer& renderer) const
 {
 	for (size_t i = 0; i < m_Entities.size(); i++)
 	{
-		m_Entities[i]->Render(renderer, model);
+		m_Entities[i]->Render(renderer);
 	}
 }

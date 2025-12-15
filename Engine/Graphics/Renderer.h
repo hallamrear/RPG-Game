@@ -135,7 +135,7 @@ public:
 	HRESULT UpdateWorldMatrix(const DirectX::XMFLOAT4X4& worldMatrix);
 	HRESULT UpdateMaterialBuffer(const Material& mb);
 	HRESULT UpdateLightingBuffer(const LightBuffer& lb);
-	HRESULT UpdateConstantBuffer(const ConstantBuffer& cb, const int& index);
+	HRESULT UpdateConstantBuffer(const ConstantBuffer& cb);
 
 	static bool Initialise(Renderer& renderer, const HWND& windowHandle);
 	static void Shutdown(Renderer& renderer);

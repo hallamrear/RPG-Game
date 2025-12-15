@@ -35,6 +35,6 @@ public:
 
 	const int& GetID() const;
 	virtual void Update(const float& deltaTime);
-	virtual void Render(Renderer& renderer, Model& model) const;
+	virtual void Render(Renderer& renderer) const;
 };
 

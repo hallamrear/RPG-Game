@@ -825,7 +825,6 @@ HRESULT Renderer::FlushCommandQueue()
 
 HRESULT Renderer::CreateConstantBuffers()
 {
-    CD3DX12_RESOURCE_DESC resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(ConstantBuffer) * MAX_NUM_ENTITIES);
     CD3DX12_HEAP_PROPERTIES heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
 
     ConstantBuffer emptyCb = ConstantBuffer();
@@ -840,10 +839,12 @@ HRESULT Renderer::CreateConstantBuffers()
         CD3DX12_RANGE readRange(0, 0);
 
         //Creating per-frame Constant Buffer
+        CD3DX12_RESOURCE_DESC cbResourceDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(ConstantBuffer));
+
         result = m_Device->CreateCommittedResource(
             &uploadHeapProperties,
             D3D12_HEAP_FLAG_NONE,
-            &resourceDesc,
+            &cbResourceDesc,
             D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_GENERIC_READ,
             nullptr,
             IID_PPV_ARGS(&m_ConstantBufferGPUUploaderArray[i]));
@@ -876,10 +877,12 @@ HRESULT Renderer::CreateConstantBuffers()
         //--------------------------------------------------------------------//
 
         //Creating per-frame Light Buffer
+        CD3DX12_RESOURCE_DESC lbResourceDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(LightBuffer));
+
         result = m_Device->CreateCommittedResource(
             &uploadHeapProperties,
             D3D12_HEAP_FLAG_NONE,
-            &resourceDesc,
+            &lbResourceDesc,
             D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_GENERIC_READ,
             nullptr,
             IID_PPV_ARGS(&m_LightBufferGPUUploaderArray[i]));
@@ -998,26 +1001,26 @@ HRESULT Renderer::CreateRootSignatureAndDescriptorTable()
     slotRootParameters[0].Descriptor = perFrameConstantBufferDescriptor;
     slotRootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY::D3D12_SHADER_VISIBILITY_ALL;
 
-    ////Lighting Constant Buffer
-    D3D12_ROOT_DESCRIPTOR lightingConstantBufferDescriptor{};
-    lightingConstantBufferDescriptor.RegisterSpace = 0;
-    lightingConstantBufferDescriptor.ShaderRegister = 1;
-    slotRootParameters[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-    slotRootParameters[1].Descriptor = lightingConstantBufferDescriptor;
-    slotRootParameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY::D3D12_SHADER_VISIBILITY_ALL;
-
     //Push Constants
     D3D12_ROOT_CONSTANTS rootConstants{};
     rootConstants.Num32BitValues = sizeof(PushConstants) / sizeof(UINT);
     rootConstants.RegisterSpace = 0;
-    rootConstants.ShaderRegister = 2;
+    rootConstants.ShaderRegister = 1;
     D3D12_ROOT_DESCRIPTOR pushConstantDescriptor{};
     pushConstantDescriptor.RegisterSpace = rootConstants.RegisterSpace;
     pushConstantDescriptor.ShaderRegister = rootConstants.ShaderRegister;
-    slotRootParameters[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE::D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
-    slotRootParameters[2].Descriptor = pushConstantDescriptor;
+    slotRootParameters[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE::D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+    slotRootParameters[1].Descriptor = pushConstantDescriptor;
+    slotRootParameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY::D3D12_SHADER_VISIBILITY_ALL;
+    slotRootParameters[1].Constants = rootConstants;
+
+    //Lighting Constant Buffer
+    D3D12_ROOT_DESCRIPTOR lightingConstantBufferDescriptor{};
+    lightingConstantBufferDescriptor.RegisterSpace = 0;
+    lightingConstantBufferDescriptor.ShaderRegister = 2;
+    slotRootParameters[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    slotRootParameters[2].Descriptor = lightingConstantBufferDescriptor;
     slotRootParameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY::D3D12_SHADER_VISIBILITY_ALL;
-    slotRootParameters[2].Constants = rootConstants;
 
     //SRV Table
     D3D12_DESCRIPTOR_RANGE descriptorTableRange[1]{};
@@ -1031,8 +1034,6 @@ HRESULT Renderer::CreateRootSignatureAndDescriptorTable()
     descriptorTable.pDescriptorRanges = &descriptorTableRange[0];
     slotRootParameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
     slotRootParameters[3].DescriptorTable = descriptorTable;
-
-    https://learn.microsoft.com/en-us/windows/win32/direct3d12/example-root-signatures
 
     D3D12_STATIC_SAMPLER_DESC staticSamplerDesc[1]{};
     staticSamplerDesc[0].Filter = D3D12_FILTER::D3D12_FILTER_COMPARISON_MIN_LINEAR_MAG_POINT_MIP_LINEAR;
@@ -1105,6 +1106,8 @@ HRESULT Renderer::CreateRootSignatureAndDescriptorTable()
     }
 
     m_RootSignature->SetName(L"Root Signature");
+
+    m_CommandList->SetGraphicsRootSignature(m_RootSignature);
 
     return S_OK;
 }
@@ -1437,21 +1440,14 @@ void Renderer::SetClearColour(const DirectX::XMFLOAT4& newColour)
 HRESULT Renderer::UpdateWorldMatrix(const DirectX::XMFLOAT4X4& worldMatrix)
 {
     CUSTOM_ASSERT(m_IsInitialised);
-    m_CommandList->SetGraphicsRoot32BitConstants(2, sizeof(DirectX::XMFLOAT4X4) / sizeof(UINT), &worldMatrix, offsetof(PushConstants, World) / sizeof(UINT));
+    m_CommandList->SetGraphicsRoot32BitConstants(1, sizeof(DirectX::XMFLOAT4X4) / sizeof(UINT), &worldMatrix, offsetof(PushConstants, World) / sizeof(UINT));
     return S_OK;
 }
 
 HRESULT Renderer::UpdateMaterialBuffer(const Material& material)
 {
     CUSTOM_ASSERT(m_IsInitialised);
-    size_t MaterialSize = sizeof(Material);
-    size_t UINTSize = sizeof(UINT);
-    size_t offset = offsetof(PushConstants, MaterialData);
-
-    size_t materialSizeInUINT = sizeof(Material) / sizeof(UINT);
-    size_t uintOffSetCount = offset / UINTSize;
-
-    m_CommandList->SetGraphicsRoot32BitConstants(2, sizeof(Material) / sizeof(UINT), &material, offsetof(PushConstants, MaterialData) / sizeof(UINT));
+    m_CommandList->SetGraphicsRoot32BitConstants(1, sizeof(Material) / sizeof(UINT), &material, offsetof(PushConstants, MaterialData) / sizeof(UINT));
     return S_OK;
 }
 
@@ -1461,7 +1457,7 @@ HRESULT Renderer::UpdateLightingBuffer(const LightBuffer& lb)
 
     if (m_LightBufferAddressArray[m_CurrentBackbufferIndex] != nullptr)
     {
-        m_CommandList->SetGraphicsRootConstantBufferView(1, m_LightBufferGPUUploaderArray[m_CurrentBackbufferIndex]->GetGPUVirtualAddress());
+        m_CommandList->SetGraphicsRootConstantBufferView(2, m_LightBufferGPUUploaderArray[m_CurrentBackbufferIndex]->GetGPUVirtualAddress());
         memcpy(m_LightBufferAddressArray[m_CurrentBackbufferIndex], &lb, sizeof(LightBuffer));
         return S_OK;
     }
@@ -1469,14 +1465,14 @@ HRESULT Renderer::UpdateLightingBuffer(const LightBuffer& lb)
     return E_FAIL;
 }
 
-HRESULT Renderer::UpdateConstantBuffer(const ConstantBuffer& cb, const int& index)
+HRESULT Renderer::UpdateConstantBuffer(const ConstantBuffer& cb)
 {
     CUSTOM_ASSERT(m_IsInitialised);
 
     if (m_ConstantBufferAddressArray[m_CurrentBackbufferIndex] != nullptr)
     {
-        m_CommandList->SetGraphicsRootConstantBufferView(0, m_ConstantBufferGPUUploaderArray[m_CurrentBackbufferIndex]->GetGPUVirtualAddress() + (index * sizeof(ConstantBuffer)));
-        memcpy(m_ConstantBufferAddressArray[m_CurrentBackbufferIndex] + (index * sizeof(ConstantBuffer)), &cb, sizeof(ConstantBuffer));
+        m_CommandList->SetGraphicsRootConstantBufferView(0, m_ConstantBufferGPUUploaderArray[m_CurrentBackbufferIndex]->GetGPUVirtualAddress());
+        memcpy(m_ConstantBufferAddressArray[m_CurrentBackbufferIndex], &cb, sizeof(ConstantBuffer));
         return S_OK;
     }
 
