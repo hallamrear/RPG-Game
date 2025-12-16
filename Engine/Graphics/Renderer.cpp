@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include "Texturing/Texture.h"
 
 #define FAILED_RETURN(hr) if(FAILED(hr)) return !FAILED(hr);
 
@@ -16,7 +17,9 @@ const DXGI_FORMAT Renderer::m_DepthStencilBufferFormat = DXGI_FORMAT::DXGI_FORMA
 
 Renderer::Renderer()
 {
-    m_SRVHeap = nullptr;
+    m_NullTextureDescriptor = {};
+    m_PerObjectSRVHeap = nullptr;
+    m_MainSRVHeap = nullptr;
     m_CBVHeaps = nullptr;
     m_ClearColour = DirectX::XMFLOAT4(0.424f, 0.725f, 0.788f, 1.0f);
     m_IsInitialised = false;
@@ -228,6 +231,10 @@ bool Renderer::Initialise(Renderer& renderer, const HWND& windowHandle)
     hr = renderer.CreateGraphicsPipelines();
     renderer.m_IsInitialised &= SUCCEEDED(hr);
     FAILED_RETURN(hr)
+
+    hr = renderer.CreateNullDescriptors();
+    renderer.m_IsInitialised &= SUCCEEDED(hr);
+    FAILED_RETURN(hr)
    
     if (renderer.IsInitialised() == false)
     {
@@ -245,6 +252,7 @@ void Renderer::Shutdown(Renderer& renderer)
         return;
     }
     
+    renderer.DestroyNullDescriptors();
     renderer.DestroyGraphicsPipelines();
     renderer.DestroyLoadedShaders();
     renderer.DestroyRootSignatureAndDescriptorTable();
@@ -271,6 +279,29 @@ const int& Renderer::GetWindowWidth() const
 const int& Renderer::GetWindowHeight() const
 {
     return m_WindowHeight;
+}
+
+const D3D12_CPU_DESCRIPTOR_HANDLE& Renderer::GetNullTextureDescriptor() const
+{
+    return m_NullTextureDescriptor;
+}
+
+HRESULT Renderer::AssignTextureToSlot(const int& index, Texture* texture)
+{
+    CD3DX12_CPU_DESCRIPTOR_HANDLE destDescriptor(m_PerObjectSRVHeap->GetCPUDescriptorHandleForHeapStart());
+    destDescriptor.Offset(index * GetSRVDescriptorHeapSize());
+
+    if (texture != nullptr)
+    {
+        if (texture->IsLoaded())
+        {
+            m_Device->CopyDescriptorsSimple(1, destDescriptor, texture->GetCPUHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+            return S_OK;
+        }
+    }
+
+    m_Device->CopyDescriptorsSimple(1, destDescriptor, GetNullTextureDescriptor(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    return S_OK;
 }
 
 const DirectX::XMFLOAT4X4& Renderer::GetProjectionMatrix() const
@@ -596,20 +627,36 @@ HRESULT Renderer::CreateDescriptorHeaps()
 
     m_DSVHeap->SetName(L"Depth Stencil Heap");
 
-    D3D12_DESCRIPTOR_HEAP_DESC srvDescriptorHeapDesc{};
-    srvDescriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-    srvDescriptorHeapDesc.NumDescriptors = MAX_LOADABLE_TEXTURES;
-    srvDescriptorHeapDesc.NodeMask = 0;
-    srvDescriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAGS::D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-    m_Device->CreateDescriptorHeap(&srvDescriptorHeapDesc, IID_PPV_ARGS(&m_SRVHeap));
+    D3D12_DESCRIPTOR_HEAP_DESC mainSRVDescriptorHeapDesc{};
+    mainSRVDescriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+    mainSRVDescriptorHeapDesc.NumDescriptors = MAX_LOADABLE_TEXTURES;
+    mainSRVDescriptorHeapDesc.NodeMask = 0;
+    mainSRVDescriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAGS::D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+    m_Device->CreateDescriptorHeap(&mainSRVDescriptorHeapDesc, IID_PPV_ARGS(&m_MainSRVHeap));
 
     if (FAILED(result))
     {
-        Debug::LogSevere("Failed to create SRV descriptor heap.\n");
+        Debug::LogSevere("Failed to create main SRV descriptor heap.\n");
         return result;
     }
 
-    m_SRVHeap->SetName(L"CBV/SRV/UAV Heap");
+    m_MainSRVHeap->SetName(L"Main CBV/SRV/UAV Heap");
+
+
+    D3D12_DESCRIPTOR_HEAP_DESC drawDescriptorHeapDesc{};
+    drawDescriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+    drawDescriptorHeapDesc.NumDescriptors = MAX_LOADABLE_TEXTURES;
+    drawDescriptorHeapDesc.NodeMask = 0;
+    drawDescriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAGS::D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+    m_Device->CreateDescriptorHeap(&drawDescriptorHeapDesc, IID_PPV_ARGS(&m_PerObjectSRVHeap));
+
+    if (FAILED(result))
+    {
+        Debug::LogSevere("Failed to create per object SRV descriptor heap.\n");
+        return result;
+    }
+
+    m_PerObjectSRVHeap->SetName(L"Draw Call CBV/SRV/UAV Heap");
 
     return result;
 }
@@ -628,10 +675,16 @@ void Renderer::DestroyDescriptorHeaps()
         m_DSVHeap = nullptr;
     }
 
-    if (m_SRVHeap != nullptr)
+    if (m_MainSRVHeap != nullptr)
     {
-        m_SRVHeap->Release();
-        m_SRVHeap = nullptr;
+        m_MainSRVHeap->Release();
+        m_MainSRVHeap = nullptr;
+    }
+
+    if (m_PerObjectSRVHeap != nullptr)
+    {
+        m_PerObjectSRVHeap->Release();
+        m_PerObjectSRVHeap = nullptr;
     }
 }
 
@@ -1301,16 +1354,28 @@ void Renderer::DestroyGraphicsPipelines()
 
 HRESULT Renderer::CreateNullDescriptors()
 {
-    return E_NOTIMPL;
+    const DXGI_FORMAT textureFormat = DXGI_FORMAT::DXGI_FORMAT_R8G8B8A8_UNORM;
+    CD3DX12_SHADER_RESOURCE_VIEW_DESC srvDesc = CD3DX12_SHADER_RESOURCE_VIEW_DESC::Tex2D(textureFormat);
+    CD3DX12_CPU_DESCRIPTOR_HANDLE srvCpuHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(GetMainSRVDescriptorHeapStartCPU(), 0, GetSRVDescriptorHeapSize());
+
+    m_Device->CreateShaderResourceView(NULL, &srvDesc, srvCpuHandle);
+
+    HRESULT result = ExecuteAndResetCommandList();
+
+    if (FAILED(result))
+    {
+        Debug::LogSevere("Failed to execute and reset command list during texture buffer creation.\n");
+        return SUCCEEDED(result);
+    }
+
+    m_NullTextureDescriptor = srvCpuHandle;
+
+    return result;
 }
 
 void Renderer::DestroyNullDescriptors()
 {
-    if (m_NullTextureDescriptor != nullptr)
-    {
-        m_NullTextureDescriptor->Release();
-        m_NullTextureDescriptor = nullptr;
-    }
+    m_NullTextureDescriptor = {};
 }
 
 UINT Renderer::GetSRVDescriptorHeapSize() const
@@ -1318,16 +1383,28 @@ UINT Renderer::GetSRVDescriptorHeapSize() const
     return m_CBVSRVDescriptorHeapSize;
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE Renderer::GetCPUSRVDescriptorHeapStart() const
+D3D12_CPU_DESCRIPTOR_HANDLE Renderer::GetDrawingSRVDescriptorHeapStartCPU() const
 {
-    CUSTOM_ASSERT((m_SRVHeap != nullptr));
-    return m_SRVHeap->GetCPUDescriptorHandleForHeapStart();
+    CUSTOM_ASSERT((m_PerObjectSRVHeap != nullptr));
+    return m_PerObjectSRVHeap->GetCPUDescriptorHandleForHeapStart();
 }
 
-D3D12_GPU_DESCRIPTOR_HANDLE Renderer::GetGPUSRVDescriptorHeapStart() const
+D3D12_GPU_DESCRIPTOR_HANDLE Renderer::GetDrawingSRVDescriptorHeapStartGPU() const
 {
-    CUSTOM_ASSERT((m_SRVHeap != nullptr));
-    return m_SRVHeap->GetGPUDescriptorHandleForHeapStart();
+    CUSTOM_ASSERT((m_PerObjectSRVHeap != nullptr));
+    return m_PerObjectSRVHeap->GetGPUDescriptorHandleForHeapStart();
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE Renderer::GetMainSRVDescriptorHeapStartCPU() const
+{
+    CUSTOM_ASSERT((m_MainSRVHeap != nullptr));
+    return m_MainSRVHeap->GetCPUDescriptorHandleForHeapStart();
+}
+
+D3D12_GPU_DESCRIPTOR_HANDLE Renderer::GetMainSRVDescriptorHeapStartGPU() const
+{
+    CUSTOM_ASSERT((m_MainSRVHeap != nullptr));
+    return m_MainSRVHeap->GetGPUDescriptorHandleForHeapStart();
 }
 
 HRESULT Renderer::ExecuteAndResetCommandList()
@@ -1529,10 +1606,10 @@ void Renderer::ClearFrame()
 
     m_CommandList->SetGraphicsRootSignature(m_RootSignature);
 
-    ID3D12DescriptorHeap* heaps[] = { m_SRVHeap };
+    ID3D12DescriptorHeap* heaps[] = { m_PerObjectSRVHeap };
     m_CommandList->SetDescriptorHeaps(_countof(heaps), heaps);
 
-    CD3DX12_GPU_DESCRIPTOR_HANDLE srvHeap(m_SRVHeap->GetGPUDescriptorHandleForHeapStart());
+    CD3DX12_GPU_DESCRIPTOR_HANDLE srvHeap(heaps[0]->GetGPUDescriptorHandleForHeapStart());
     m_CommandList->SetGraphicsRootDescriptorTable(3, srvHeap);
 
     m_CommandList->SetPipelineState(m_DefaultPipeline);

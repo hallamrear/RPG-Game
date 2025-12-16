@@ -126,7 +126,6 @@ void GameInstance::Update(const float& deltaTime)
 	if (!IsRunning())
 		return;
 
-
 	DirectX::XMFLOAT3 pos = DirectX::XMFLOAT3(sinf(timer) * 550.0f, 200.0f, cosf(timer) * 550.0f);
 	DirectX::XMFLOAT3 zero = DirectX::XMFLOAT3(0.0f, 5.0f, 0.0f);
 	DirectX::XMFLOAT3 dir = DirectX::XMFLOAT3(zero.x - pos.x, zero.y - pos.y, zero.z - pos.z);

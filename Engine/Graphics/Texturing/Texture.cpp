@@ -11,7 +11,7 @@ void Texture::Destroy()
 		m_Height = -1;
 		m_Width = -1;
 		m_ID = -1;
-		m_SRVHandle = {};
+		m_CPUHandle = {};
 	}
 }
 
@@ -22,7 +22,7 @@ Texture::Texture()
 	m_Width = -1;
 	m_Height = -1;
 	m_IsLoaded = false;
-	m_SRVHandle = {};
+	m_CPUHandle = {};
 }
 
 Texture::~Texture()
@@ -43,9 +43,9 @@ ID3D12Resource* Texture::GetResource() const
 	return nullptr;
 }
 
-const D3D12_GPU_DESCRIPTOR_HANDLE& Texture::GetSRVHandle() const
+const D3D12_CPU_DESCRIPTOR_HANDLE& Texture::GetCPUHandle() const
 {
-	return m_SRVHandle;
+	return m_CPUHandle;
 }
 
 const int& Texture::GetID() const

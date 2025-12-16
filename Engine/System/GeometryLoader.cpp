@@ -573,7 +573,6 @@ bool GeometryLoader::LoadTexturesFromGLTF(Renderer& renderer, Model& model, tiny
     }
 
     return true;
-
 }
 
 bool GeometryLoader::Load(Renderer& renderer, Model& model, const std::string& path)

@@ -49,13 +49,27 @@ void Model::Render(Renderer& renderer) const
 {
 	for (size_t i = 0; i < m_Meshes.size(); i++)
 	{
-		if (m_Textures.size() > 0 && m_Meshes[i]->GetTextureID() > 0)
+		for (size_t t = 0; t < 5; t++)
 		{
-			Texture* texture = m_Textures[m_Meshes[i]->GetTextureID()];
+			renderer.AssignTextureToSlot(t, nullptr);
+		}
 
-			if (texture != nullptr)
+		for (size_t t = 0; t < 5; t++)
+		{
+			int index = m_Meshes[i]->GetTextureID();
+
+			if (index >= 0)
 			{
-				renderer.GetCommandList()->SetGraphicsRootDescriptorTable(3, texture->GetSRVHandle());
+				Texture* texture = m_Textures[m_Meshes[i]->GetTextureID()];
+
+				if (texture != nullptr)
+				{
+					renderer.AssignTextureToSlot(t, texture);
+				}
+			}
+			else
+			{
+				renderer.AssignTextureToSlot(t, nullptr);
 			}
 		}
 

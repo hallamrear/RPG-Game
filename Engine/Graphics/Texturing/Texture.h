@@ -12,7 +12,7 @@ private:
 	int m_Height;
 	bool m_IsLoaded;
 	ID3D12Resource* m_Resource;
-	D3D12_GPU_DESCRIPTOR_HANDLE m_SRVHandle;
+	D3D12_CPU_DESCRIPTOR_HANDLE m_CPUHandle;
 
 	void Destroy();
 
@@ -21,7 +21,7 @@ public:
 	~Texture();
 
 	ID3D12Resource* GetResource() const;
-	const D3D12_GPU_DESCRIPTOR_HANDLE& GetSRVHandle() const;
+	const D3D12_CPU_DESCRIPTOR_HANDLE& GetCPUHandle() const;
 	const int& GetID() const;
 	const bool& IsLoaded() const;
 };

@@ -16,6 +16,11 @@ bool TextureLoader::IsTextureLoaded(const std::string& filename)
 	return itr != m_TextureMap.end();
 }
 
+bool TextureLoader::CreateNullDescriptor(Renderer& renderer, Texture& texture)
+{
+	return false;
+}
+
 bool TextureLoader::LoadFromData(Renderer& renderer, Texture& texture, const std::string& referenceName, const void* data, const size_t& bytes)
 {
 	if (texture.IsLoaded())
@@ -91,8 +96,8 @@ bool TextureLoader::LoadFromData(Renderer& renderer, Texture& texture, const std
 	 
 	CD3DX12_SHADER_RESOURCE_VIEW_DESC srvDesc = CD3DX12_SHADER_RESOURCE_VIEW_DESC::Tex2D(textureFormat);
 
-	CD3DX12_GPU_DESCRIPTOR_HANDLE srvGpuHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(renderer.GetGPUSRVDescriptorHeapStart(), m_TextureMap.size(), renderer.GetSRVDescriptorHeapSize());
-	CD3DX12_CPU_DESCRIPTOR_HANDLE srvCpuHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(renderer.GetCPUSRVDescriptorHeapStart(), m_TextureMap.size(), renderer.GetSRVDescriptorHeapSize());
+	//Map Size + 1 to account for the null descriptor created by the renderer.
+	CD3DX12_CPU_DESCRIPTOR_HANDLE srvCpuHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(renderer.GetMainSRVDescriptorHeapStartCPU(), m_TextureMap.size() + 1, renderer.GetSRVDescriptorHeapSize());
 
 	device->CreateShaderResourceView(texture.m_Resource, &srvDesc, srvCpuHandle);
 
@@ -110,7 +115,7 @@ bool TextureLoader::LoadFromData(Renderer& renderer, Texture& texture, const std
 		texture.m_Width = width;
 		texture.m_IsLoaded = true;
 		texture.m_ID = m_TextureMap.size();
-		texture.m_SRVHandle = srvGpuHandle;
+		texture.m_CPUHandle = srvCpuHandle;
 		m_TextureMap.insert({ referenceName, &texture });		
 	}
 
@@ -142,6 +147,7 @@ bool TextureLoader::LoadFromFile(Renderer& renderer, Texture& texture, const std
 
 	if (IsTextureLoaded(path))
 	{
+		Debug::LogWarning("Texture already exists in map. Populating texture with their values.\n");
 		return LoadExistingResourceFromMap(texture, path);
 	}
 

@@ -5,6 +5,7 @@
 class ConstantBuffer;
 class LightBuffer;
 class Material;
+class Texture;
 
 class Renderer
 {
@@ -50,7 +51,8 @@ private:
 
 	struct ID3D12DescriptorHeap* m_RTVHeap;
 	struct ID3D12DescriptorHeap* m_DSVHeap;
-	struct ID3D12DescriptorHeap* m_SRVHeap;
+	struct ID3D12DescriptorHeap* m_MainSRVHeap;
+	struct ID3D12DescriptorHeap* m_PerObjectSRVHeap;
 	HRESULT CreateDescriptorHeaps();
 	void DestroyDescriptorHeaps();
 	struct D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentBackbufferView() const;
@@ -104,7 +106,7 @@ private:
 	DirectX::XMFLOAT4X4 m_ViewMatrix;
 	DirectX::XMFLOAT4X4 m_ProjectionMatrix;
 
-	ID3D12Resource* m_NullTextureDescriptor;
+	D3D12_CPU_DESCRIPTOR_HANDLE m_NullTextureDescriptor;
 	HRESULT CreateNullDescriptors();
 	void DestroyNullDescriptors();
 
@@ -128,8 +130,10 @@ public:
 	ID3D12Device* GetDevice();
 
 	UINT GetSRVDescriptorHeapSize() const;
-	struct D3D12_CPU_DESCRIPTOR_HANDLE GetCPUSRVDescriptorHeapStart() const;
-	struct D3D12_GPU_DESCRIPTOR_HANDLE GetGPUSRVDescriptorHeapStart() const;
+	struct D3D12_CPU_DESCRIPTOR_HANDLE GetMainSRVDescriptorHeapStartCPU() const;
+	struct D3D12_GPU_DESCRIPTOR_HANDLE GetMainSRVDescriptorHeapStartGPU() const;
+	struct D3D12_CPU_DESCRIPTOR_HANDLE GetDrawingSRVDescriptorHeapStartCPU() const;
+	struct D3D12_GPU_DESCRIPTOR_HANDLE GetDrawingSRVDescriptorHeapStartGPU() const;
 
 	HRESULT CreateDefaultBuffer(ID3D12Resource*& defaultBuffer, ID3D12Resource*& gpuUploadBuffer, const void* data, const size_t& sizeBytes);
 
@@ -146,6 +150,9 @@ public:
 
 	const int& GetWindowWidth() const;
 	const int& GetWindowHeight() const;
+
+	const D3D12_CPU_DESCRIPTOR_HANDLE& GetNullTextureDescriptor() const;
+	HRESULT AssignTextureToSlot(const int& index, Texture* texture);
 
 	const DirectX::XMFLOAT4X4& GetProjectionMatrix() const;
 	DirectX::XMFLOAT4X4& GetProjectionMatrix();
