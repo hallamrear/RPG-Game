@@ -15,6 +15,7 @@ private:
 	DirectX::XMFLOAT4X4 m_WorldMatrix;
 	Material m_Material;
 	const Model* m_Model;
+	std::vector<Entity*> m_Children;
 
 public:
 	Entity();
@@ -22,6 +23,10 @@ public:
 
 	void SetParent(Entity* parent);
 	Entity* GetParent() const;
+
+	int GetChildCount() const;
+	Entity* GetChild(const int& index) const;
+	std::vector<Entity*>& GetChildren();
 
 	const std::string& GetName() const;
 	void SetName(const std::string& name);

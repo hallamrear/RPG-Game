@@ -32,12 +32,52 @@ Entity::~Entity()
 
 void Entity::SetParent(Entity* parent)
 {
-	m_Parent = parent;
+	if (parent != nullptr)
+	{
+		m_Parent = parent;
+		m_Parent->m_Children.push_back(this);
+	}
+	else
+	{
+		if (m_Parent)
+		{
+			for(int i = 0; i < m_Parent->GetChildCount(); i++)
+			{
+				Entity* child = m_Parent->GetChild(i);
+
+				if(child == this)
+				{
+					m_Parent->m_Children.erase(m_Parent->m_Children.begin() + i);
+					break;
+				}
+			}
+
+			m_Parent = nullptr;
+		}
+	}
 }
 
 Entity* Entity::GetParent() const
 {
 	return m_Parent;
+}
+
+int Entity::GetChildCount() const
+{
+	return m_Children.size();
+}
+
+Entity* Entity::GetChild(const int& index) const
+{
+	if (index < 0 || index > m_Children.size())
+		return nullptr;
+
+	return m_Children[index];
+}
+
+std::vector<Entity*>& Entity::GetChildren()
+{
+	return m_Children;
 }
 
 const std::string& Entity::GetName() const

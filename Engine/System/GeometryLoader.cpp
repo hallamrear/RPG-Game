@@ -120,17 +120,24 @@ bool GeometryLoader::LoadGeometryFromGLTFMesh(Renderer& renderer, Model& model, 
 
         if (gltfMesh.primitives[p].material != -1)
         {
-            mesh->m_ModelMaterialID = gltfMesh.primitives[p].material;
-            mesh->m_ModelTextureID = gltfModel.materials[mesh->m_ModelMaterialID].pbrMetallicRoughness.baseColorTexture.index;
+            const tinygltf::Material& gltfMaterial = gltfModel.materials[gltfMesh.primitives[p].material];
+            mesh->m_ModelMaterialID = model.m_Materials.size();
+            mesh->m_ModelTextureID = gltfMaterial.pbrMetallicRoughness.baseColorTexture.index;
 
             Material* material = new Material();
-            material->BaseColour.x = gltfModel.materials[mesh->m_ModelMaterialID].pbrMetallicRoughness.baseColorFactor[0];
-            material->BaseColour.y = gltfModel.materials[mesh->m_ModelMaterialID].pbrMetallicRoughness.baseColorFactor[1];
-            material->BaseColour.z = gltfModel.materials[mesh->m_ModelMaterialID].pbrMetallicRoughness.baseColorFactor[2];
-            material->BaseColour.w = gltfModel.materials[mesh->m_ModelMaterialID].pbrMetallicRoughness.baseColorFactor[3];
-            material->Metalness = gltfModel.materials[mesh->m_ModelMaterialID].pbrMetallicRoughness.metallicFactor;
-            material->Roughness = gltfModel.materials[mesh->m_ModelMaterialID].pbrMetallicRoughness.roughnessFactor;
+            material->BaseColour.x = gltfMaterial.pbrMetallicRoughness.baseColorFactor[0];
+            material->BaseColour.y = gltfMaterial.pbrMetallicRoughness.baseColorFactor[1];
+            material->BaseColour.z = gltfMaterial.pbrMetallicRoughness.baseColorFactor[2];
+            material->BaseColour.w = gltfMaterial.pbrMetallicRoughness.baseColorFactor[3];
+            material->Metalness = gltfMaterial.pbrMetallicRoughness.metallicFactor;
+            material->Roughness = gltfMaterial.pbrMetallicRoughness.roughnessFactor;
             model.m_Materials.push_back(material);
+
+            Debug::LogMessage("Found material ID for mesh: %i - %s\n", gltfMesh.primitives[p].material, gltfMaterial.name.c_str());
+            Debug::LogMessage("Becomes model material: %i\n", mesh->m_ModelMaterialID);
+            Debug::LogMessage("\tBase Colour: %f %f %f %f\n\tMetalness: %f\n\tRoughness: %f\n",
+                material->BaseColour.x, material->BaseColour.y, material->BaseColour.z, material->BaseColour.w,
+                material->Metalness, material->Roughness);
         }
 
         primitiveCount = 0;

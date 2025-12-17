@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "World.h"
 #include <World/Entity.h>
+#include <System/Debug.h>
 
 World::World()
 {
@@ -32,4 +33,24 @@ void World::Render(Renderer& renderer) const
 	{
 		m_Entities[i]->Render(renderer);
 	}
+}
+
+void World::PrintHierarchy(Entity* entity, int& depth)
+{
+	for (size_t i = 0; i < depth; i++)
+	{
+		Debug::LogMessage("\t");
+	}
+
+	Debug::LogMessage("Entity: %s\n", entity->GetName().c_str());
+
+	if (entity->GetChildCount() != 0)
+	{
+		for (size_t i = 0; i < entity->GetChildCount(); i++)
+		{
+			int newD = depth + 1;
+			PrintHierarchy(entity->GetChild(i), newD);
+		}
+	}
+
 }

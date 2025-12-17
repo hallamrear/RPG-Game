@@ -153,8 +153,6 @@ void GameInstance::Update(const float& deltaTime)
 		type++;
 		type = type % 3;
 
-		Debug::LogMessage("LT: %i\n", type);
-
 		m_LightBuffer->LightData[0].Enabled = 1;
 		m_LightBuffer->LightData[0].Type = (Light::LIGHT_TYPE)type;
 		m_LightBuffer->LightData[0].Position = pos4;
