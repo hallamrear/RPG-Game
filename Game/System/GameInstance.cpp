@@ -57,19 +57,12 @@ bool GameInstance::Initialise(const HWND& windowHandle)
 
 	m_LightBuffer = new LightBuffer();
 
-	int type = 0;
 	for (size_t i = 0; i < MAX_LIGHT_COUNT; i++)
 	{
 		m_LightBuffer->LightData[i].Enabled = 0;
-
-		if (i % 4 == 0)
-		{
-			type++;
-		}
-
-		m_LightBuffer->LightData[i].Type = (Light::LIGHT_TYPE)type;
+		m_LightBuffer->LightData[i].Type = (Light::LIGHT_TYPE::DIRECTIONAL);
 		m_LightBuffer->LightData[i].Position = DirectX::XMFLOAT4(0.0f, 5.0f, 0.0f, 1.0f);
-		m_LightBuffer->LightData[i].Direction = DirectX::XMFLOAT4(-5.0f, -5.0f, 0.0f, 0.0f);
+		m_LightBuffer->LightData[i].Direction = DirectX::XMFLOAT4(0.0f, -5.0f, 0.0f, 0.0f);
 		m_LightBuffer->LightData[i].Ambient = DirectX::XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
 		m_LightBuffer->LightData[i].Diffuse = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 		m_LightBuffer->LightData[i].Specular = DirectX::XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
@@ -78,7 +71,9 @@ bool GameInstance::Initialise(const HWND& windowHandle)
 		m_LightBuffer->LightData[i].OuterCutoff = 0.82f;
 		m_LightBuffer->LightData[i].Strength = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	}
-	
+
+	m_LightBuffer->LightData[0].Enabled = 1;
+
 	//Setting to closed as the first reference to the command list will open it.
 	if (m_Renderer.GetCommandList())
 	{
@@ -149,16 +144,6 @@ void GameInstance::Update(const float& deltaTime)
 
 	if (t > 1.0f)
 	{
-		int type = (int)m_LightBuffer->LightData[0].Type;
-		type++;
-		type = type % 3;
-
-		m_LightBuffer->LightData[0].Enabled = 1;
-		m_LightBuffer->LightData[0].Type = (Light::LIGHT_TYPE)type;
-		m_LightBuffer->LightData[0].Position = pos4;
-		m_LightBuffer->LightData[0].Direction = dir4;
-		m_LightBuffer->LightData[0].Strength = DirectX::XMFLOAT4(10.0f, 10.0f, 10.0f, 10.0f);
-
 		t = 0.0f;
 	}
 

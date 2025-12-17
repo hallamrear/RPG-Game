@@ -20,6 +20,8 @@ float4 main(VS_STANDARD_VERTEX_OUTPUT input) : SV_TARGET
     float3 worldPosition = input.PositionW.xyz;
     float3 toEyeW = normalize(CameraPositionW.xyz - worldPosition);
     float3 lightingNormal = normalize(input.NormalW);
+    
+    float4 sampleColour = mat.BaseColour * DiffuseTexture.SampleLevel(linearSampler, input.UV, 0);
         
     for (int i = 0; i < MAX_LIGHT_COUNT; i++)
     {
@@ -47,9 +49,8 @@ float4 main(VS_STANDARD_VERTEX_OUTPUT input) : SV_TARGET
         }
     }
 
-    ambientLightColour = light.Ambient * mat.BaseColour;
-    
-    return mat.BaseColour * DiffuseTexture.SampleLevel(linearSampler, input.UV, 0);
+    ambientLightColour = light.Ambient * sampleColour;
+    directLightColour = directLightColour * sampleColour;
     
     return ambientLightColour + directLightColour;
 }
