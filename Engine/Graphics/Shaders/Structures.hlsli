@@ -64,6 +64,7 @@ struct VS_STANDARD_VERTEX_OUTPUT
     float3 Tangent : TANGENT0;
     float3 TangentW : TANGENT1;
     float2 UV : TEXCOORD;
+    float4 Colour : COLOR0;
 };
 
 struct VS_COLOUR_ONLY_INPUT

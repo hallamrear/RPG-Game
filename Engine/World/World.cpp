@@ -19,6 +19,11 @@ World::~World()
 	m_Entities.clear();
 }
 
+Entity* World::GetEntity(int index)
+{
+	return m_Entities[index];
+}
+
 void World::Update(const float& deltaTime)
 {
 	for (size_t i = 0; i < m_Entities.size(); i++)

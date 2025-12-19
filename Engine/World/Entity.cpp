@@ -143,8 +143,11 @@ const int& Entity::GetID() const
 	return m_ID;
 }
 
+static float t = 0.0f;
+
 void Entity::Update(const float& deltaTime) 
 {
+	t += deltaTime;
 
 }
 

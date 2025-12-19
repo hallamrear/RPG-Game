@@ -4,6 +4,8 @@
 #include <System/SceneLoader.h>
 #include <System/GeometryLoader.h>
 #include <Graphics/ConstantBuffer.h>
+#include <World/Entity.h>
+
 #include <World/World.h>
 
 GameInstance::GameInstance()
@@ -121,26 +123,43 @@ void GameInstance::Update(const float& deltaTime)
 	if (!IsRunning())
 		return;
 
-	DirectX::XMFLOAT3 pos = DirectX::XMFLOAT3(sinf(timer) * 550.0f, 200.0f, cosf(timer) * 550.0f);
-	DirectX::XMFLOAT3 zero = DirectX::XMFLOAT3(0.0f, 5.0f, 0.0f);
-	DirectX::XMFLOAT3 dir = DirectX::XMFLOAT3(zero.x - pos.x, zero.y - pos.y, zero.z - pos.z);
-	DirectX::XMFLOAT3 up = DirectX::XMFLOAT3(0.0f, 1.0f, 0.0f);
+	DirectX::XMVECTOR up = { 0.0f, 1.0f, 0.0f };
 
-	DirectX::XMFLOAT4 pos4 = DirectX::XMFLOAT4(pos.x, pos.y, pos.z, 1.0f);
-	DirectX::XMFLOAT4 dir4 = DirectX::XMFLOAT4(dir.x, dir.y, dir.z, 0.0f);
-	DirectX::XMStoreFloat4x4(&m_ConstantBuffer->View, DirectX::XMLoadFloat4x4(&m_Renderer.GetViewMatrix()));
-	DirectX::XMStoreFloat4x4(&m_ConstantBuffer->Projection, DirectX::XMLoadFloat4x4(&m_Renderer.GetProjectionMatrix()));
-	DirectX::XMStoreFloat4(&m_ConstantBuffer->CameraPosition, DirectX::XMLoadFloat4(&pos4));
-	DirectX::XMStoreFloat4(&m_ConstantBuffer->CameraDirection, DirectX::XMLoadFloat4(&dir4));
+	m_LightBuffer->LightData->Position = DirectX::XMFLOAT4(sinf(timer) * 550.0f, 50.0f, cosf(timer) * 550.0f, 1.0f);
+	m_LightBuffer->LightData->Direction = DirectX::XMFLOAT4(
+		m_LightBuffer->LightData->Position.x * -1.0f,
+		m_LightBuffer->LightData->Position.y * -1.0f,
+		m_LightBuffer->LightData->Position.z * -1.0f,
+		0.0f);
 
+	DirectX::XMStoreFloat4(&m_LightBuffer->LightData->Direction, DirectX::XMVector4Normalize(DirectX::XMLoadFloat4(&m_LightBuffer->LightData->Direction)));
+	
 	timer += deltaTime;
 	t += deltaTime;
 
+	Entity* e = m_World->GetEntity(5);
+	DirectX::XMFLOAT3 scale = { 1.0f, 1.0f, 1.0f };
+	DirectX::XMFLOAT3 translation = { m_LightBuffer->LightData->Position.x, m_LightBuffer->LightData->Position.y, m_LightBuffer->LightData->Position.z };
+
+	DirectX::XMStoreFloat4x4(&e->GetLocalMatrix(),
+		DirectX::XMMatrixScaling(scale.x, scale.y, scale.z) *
+		DirectX::XMMatrixTranslation(translation.x, translation.y, translation.z));
+
+	DirectX::XMVECTOR cameraPosition = { 150.0f, 150.0f, 150.0f, 0.0f };
+	DirectX::XMVECTOR cameraTarget = { 0.0f, 0.0f, 0.0f, 0.0f };
+	DirectX::XMVECTOR cameraDirection = DirectX::XMVectorSubtract(cameraTarget, cameraPosition);
+
 	DirectX::XMStoreFloat4x4(&m_Renderer.GetViewMatrix(), DirectX::XMMatrixTranspose(
 		DirectX::XMMatrixLookAtLH(
-			DirectX::XMLoadFloat3(&pos),
-			DirectX::XMLoadFloat3(&zero),
-			DirectX::XMLoadFloat3(&up))));
+			cameraPosition,
+			cameraTarget,
+			up)));
+
+	DirectX::XMStoreFloat4(&m_ConstantBuffer->CameraPosition, cameraPosition);
+	DirectX::XMStoreFloat4(&m_ConstantBuffer->CameraDirection, cameraDirection);
+	DirectX::XMStoreFloat4x4(&m_ConstantBuffer->View, DirectX::XMLoadFloat4x4(&m_Renderer.GetViewMatrix()));
+	DirectX::XMStoreFloat4x4(&m_ConstantBuffer->Projection, DirectX::XMLoadFloat4x4(&m_Renderer.GetProjectionMatrix()));
+
 
 	if (t > 1.0f)
 	{
@@ -150,6 +169,22 @@ void GameInstance::Update(const float& deltaTime)
 	if (m_World != nullptr)
 	{
 		m_World->Update(deltaTime);
+	}
+
+	for (size_t i = 0; i < MAX_LIGHT_COUNT; i++)
+	{
+
+		if(m_LightBuffer->LightData[i].Enabled)
+		{
+			Debug::LogMessage(
+				"Light %i:\n" \
+				"\t Pos: %f %f %f\n" \
+				"\t Dir: %f %f %f\n",
+				i,
+				m_LightBuffer->LightData[i].Position.x, m_LightBuffer->LightData[i].Position.y, m_LightBuffer->LightData[i].Position.z,
+				m_LightBuffer->LightData[i].Direction.x, m_LightBuffer->LightData[i].Direction.y, m_LightBuffer->LightData[i].Direction.z
+			);
+		}
 	}
 }
 
