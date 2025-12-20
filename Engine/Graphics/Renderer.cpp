@@ -204,7 +204,7 @@ bool Renderer::Initialise(Renderer& renderer, const HWND& windowHandle)
     renderer.m_IsInitialised &= SUCCEEDED(hr);
     FAILED_RETURN(hr)
 
-    hr = renderer.SetupInitialViewportAndScissorRect();
+    hr = renderer.UpdateViewportAndScissorRect();
     renderer.m_IsInitialised &= SUCCEEDED(hr);
     FAILED_RETURN(hr)
 
@@ -322,6 +322,60 @@ const DirectX::XMFLOAT4X4& Renderer::GetViewMatrix() const
 DirectX::XMFLOAT4X4& Renderer::GetViewMatrix()
 {
     return m_ViewMatrix;
+}
+
+HRESULT Renderer::ResizeSwapchain(const int& newWidth, const int& newHeight)
+{
+    CUSTOM_ASSERT(m_IsInitialised);
+
+    if (m_SwapChain == nullptr)
+    {
+        Debug::LogFatal("Swapchain is invalid for resizing.\n");
+        return E_FAIL;
+    }
+
+    DestroyRenderTargetViews();
+    DestroyDepthStencilBuffer();
+
+    //Passing unknown format to retain the same format as the current buffers.
+    HRESULT result = m_SwapChain->ResizeBuffers(m_SwapChainBufferCount, newWidth, newHeight, DXGI_FORMAT::DXGI_FORMAT_UNKNOWN, DXGI_SWAP_CHAIN_FLAG::DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH);
+
+    if (FAILED(result))
+    {
+        Debug::LogSevere("Serious failure while resizing swapchain buffers\n");
+        return result;
+    }
+
+    m_WindowWidth = newWidth;
+    m_WindowHeight = newHeight;
+
+    result = CreateRenderTargetViews();
+
+    if (FAILED(result))
+    {
+        Debug::LogSevere("Failed to recreate render target views after swapchain resizing.\n");
+        return result;
+    }
+
+    result = CreateDepthStencilBuffer();
+
+    if (FAILED(result))
+    {
+        Debug::LogSevere("Failed to recreate depth stencil view after swapchain resizing.\n");
+        return result;
+    }
+
+    m_CurrentBackbufferIndex = 0;
+
+    result = UpdateViewportAndScissorRect();
+
+    if (FAILED(result))
+    {
+        Debug::LogSevere("Failed to update viewport or scissor rect during swapchain resize.\n");
+        return result;
+    }
+
+    return result;
 }
 
 HRESULT Renderer::CreateDeviceAndFactory()
@@ -811,7 +865,7 @@ void Renderer::DestroyDepthStencilBuffer()
     }        
 }
 
-HRESULT Renderer::SetupInitialViewportAndScissorRect()
+HRESULT Renderer::UpdateViewportAndScissorRect()
 {
     HRESULT result = E_FAIL;
 
@@ -828,13 +882,10 @@ HRESULT Renderer::SetupInitialViewportAndScissorRect()
     m_Viewport.MinDepth = 0.0f;
     m_Viewport.MaxDepth = 1.0f;
 
-    m_CommandList->RSSetViewports(1, &m_Viewport);
-
     m_ScissorRect.left = 0;
     m_ScissorRect.top = 0;
     m_ScissorRect.right = m_WindowWidth;
     m_ScissorRect.bottom = m_WindowHeight;
-    m_CommandList->RSSetScissorRects(1, &m_ScissorRect);
 
     DirectX::XMStoreFloat4x4(&m_ViewMatrix, DirectX::XMMatrixTranspose(DirectX::XMMatrixLookAtLH({ 0.0f, 1.0f, -5.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f })));
     DirectX::XMStoreFloat4x4(&m_ProjectionMatrix, DirectX::XMMatrixTranspose(DirectX::XMMatrixPerspectiveFovLH(90.0f * (3.1415926535f / 180.0f), 1920.0f / 1080.0f, DEFAULT_NEAR_PLANE, DEFAULT_FAR_PLANE)));

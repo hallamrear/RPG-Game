@@ -25,6 +25,8 @@ public:
 	bool Initialise(const HWND& windowHandle);
 	void Shutdown();
 
+	void OnResize(const int& w, const int& h);
+
 	void ProcessInput();
 	void Update(const float& deltaTime);
 	void Render();

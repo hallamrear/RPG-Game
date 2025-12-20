@@ -23,8 +23,8 @@ public:
 
 struct PushConstants
 {
-	/* 16x 32bit floats */ DirectX::XMFLOAT4X4 World;
-	/* 8x  32bit floats */ Material MaterialData;
+	/* 64b */ DirectX::XMFLOAT4X4 World;
+	/* 32b */ Material MaterialData;
 };
 
 class LightBuffer

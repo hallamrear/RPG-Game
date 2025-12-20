@@ -212,6 +212,39 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             EndPaint(hWnd, &ps);
         }
         break;
+
+    case WM_SIZE:
+    {
+        if (gInstance != nullptr)
+        {
+            switch (wParam)
+            {
+                //Message is sent to all pop - up windows when some other window is maximized.
+                case SIZE_MAXHIDE: { } break;
+
+                //The window has been maximized.
+                case SIZE_MAXIMIZED: { } break;
+
+                //Message is sent to all pop - up windows when some other window has been restored to its former size.
+                case SIZE_MAXSHOW: {} break;
+
+                //The window has been minimized.
+                case SIZE_MINIMIZED: {} break;
+                
+                //The window has been resized, but neither the SIZE_MINIMIZED nor SIZE_MAXIMIZED value applies.
+                case SIZE_RESTORED: {} break;
+
+            default:
+                break;
+            }
+
+            UINT width = LOWORD(lParam);
+            UINT height = HIWORD(lParam);
+            gInstance->OnResize(width, height);
+        }
+    }
+    break;
+
     case WM_DESTROY:
         PostQuitMessage(0);
         gInstance->SetIsRunning(false);

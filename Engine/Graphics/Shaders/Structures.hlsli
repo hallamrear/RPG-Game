@@ -22,8 +22,8 @@ struct Material
 
 cbuffer PerObjectConstantBuffer : register(b1)
 {
-    float4x4 World;
-    Material MaterialData;
+	/* 64b */ float4x4 World;
+	/* 32b */ Material MaterialData;
 };
 
 struct Light

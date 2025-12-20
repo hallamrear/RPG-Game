@@ -106,6 +106,22 @@ void GameInstance::Shutdown()
 	m_IsInitalised = false;
 }
 
+void GameInstance::OnResize(const int& w, const int& h)
+{
+	if (m_IsInitalised == false)
+	{
+		Debug::LogWarning("Resize method called on instance while not initialised.\n");
+		return;
+	}
+
+	HRESULT hr = m_Renderer.ResizeSwapchain(w, h);
+
+	if (FAILED(hr))
+	{
+		Debug::LogWarning("Failed to resize swapchain for game instance.\n");
+	}
+}
+
 void GameInstance::ProcessInput()
 {
 	if (!IsRunning())

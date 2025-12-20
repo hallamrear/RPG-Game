@@ -68,7 +68,7 @@ private:
 
 	D3D12_VIEWPORT m_Viewport;
 	D3D12_RECT m_ScissorRect;
-	HRESULT SetupInitialViewportAndScissorRect();
+	HRESULT UpdateViewportAndScissorRect();
 
 	std::vector<D3D12_INPUT_ELEMENT_DESC> m_DefaultInputLayout;
 	std::vector<D3D12_INPUT_ELEMENT_DESC> m_ColourOnlyInputLayout;
@@ -158,6 +158,8 @@ public:
 	DirectX::XMFLOAT4X4& GetProjectionMatrix();
 	const DirectX::XMFLOAT4X4& GetViewMatrix() const;
 	DirectX::XMFLOAT4X4& GetViewMatrix();
+
+	HRESULT ResizeSwapchain(const int& newWidth, const int& newHeight);
 
 	void ClearFrame();
 	HRESULT FlushCommandQueue();
