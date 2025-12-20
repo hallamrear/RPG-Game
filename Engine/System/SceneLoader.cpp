@@ -112,7 +112,8 @@ bool SceneLoader::LoadSceneFromGLTF(Renderer& renderer, World& world, tinygltf::
         DirectX::XMFLOAT4X4 localMatrix;
         DirectX::XMStoreFloat4x4(&localMatrix, DirectX::XMMatrixIdentity());
 
-        Debug::LogMessage("Node[%i] transform found as ", i);
+        Debug::LogMessage("Node [%i] - %s\n", i, gltfModel.nodes[i].name.c_str());
+        Debug::LogMessage("Node transform found as ", i);
 
         if (gltfModel.nodes[i].matrix.size() == 16)
         {
@@ -148,6 +149,10 @@ bool SceneLoader::LoadSceneFromGLTF(Renderer& renderer, World& world, tinygltf::
                 translation.y = gltfModel.nodes[i].translation[1];
                 translation.z = gltfModel.nodes[i].translation[2];
             }
+
+            translation.x -= 10.0f;
+            translation.y -= 10.0f;
+            translation.z -= 10.0f;
 
             Debug::LogMessage("\tScale : { %f, %f, %f }\n", scale.x, scale.y, scale.z);
             Debug::LogMessage("\tRotation : { %f, %f, %f, %f }\n", rotation.x, rotation.y, rotation.z, rotation.w);

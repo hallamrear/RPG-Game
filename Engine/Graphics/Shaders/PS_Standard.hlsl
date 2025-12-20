@@ -11,46 +11,42 @@ SamplerState linearSampler : register(s0);
 
 float4 main(VS_STANDARD_VERTEX_OUTPUT input) : SV_TARGET
 {   
-    float4 ambientLightColour = float4(0.0f, 0.0f, 0.0f, 0.0f);
-    float4 directLightColour = float4(0.0f, 0.0f, 0.0f, 0.0f);
+    //float4 lightColour = float4(0.0f, 0.0f, 0.0f, 0.0f);
     
-    Light light;
-    Material mat = MaterialData;
+    //Light light;
+    //Material mat = MaterialData;
     
-    float3 worldPosition = input.PositionW.xyz;
-    float3 toEyeW = normalize(CameraPositionW.xyz - worldPosition);
-    float3 lightingNormal = normalize(input.NormalW);
+    //float3 worldPosition = input.PositionW.xyz;
+    //float3 lightingNormal = normalize(input.NormalW);
     
-    float4 sampleColour = mat.BaseColour * DiffuseTexture.SampleLevel(linearSampler, input.UV, 0);
+    //float4 sampleColour = mat.BaseColour * DiffuseTexture.SampleLevel(linearSampler, input.UV, 0);
         
-    for (int i = 0; i < MAX_LIGHT_COUNT; i++)
-    {
-        light = LightData[i];
+    //for (int i = 0; i < MAX_LIGHT_COUNT; i++)
+    //{
+    //    light = LightData[i];
         
-        if(light.Enabled == 0)
-            continue;
+    //    if(light.Enabled == 0)
+    //        continue;
         
-        switch (light.Type)
-        {
-            case LIGHT_DIRECTIONAL:
-                directLightColour += CalculateDirectionalLight(light, mat, lightingNormal, toEyeW);
-                break;
+    //    switch (light.Type)
+    //    {
+    //        case LIGHT_DIRECTIONAL:
+    //            lightColour += CalculateDirectionalLight(light, mat, sampleColour, lightingNormal, worldPosition);
+    //            break;
             
-            case LIGHT_POINT:
-                directLightColour += CalculatePointLight(light, mat, lightingNormal, toEyeW, worldPosition);
-                break;
+    //        case LIGHT_POINT:
+    //            lightColour += CalculatePointLight(light, mat, sampleColour, lightingNormal, worldPosition);
+    //            break;
             
-            case LIGHT_SPOT:
-                directLightColour += CalculateSpotLight(light, mat, lightingNormal, toEyeW, worldPosition);
-                break;            
+    //        case LIGHT_SPOT:
+    //            lightColour += CalculateSpotLight(light, mat, sampleColour, lightingNormal, worldPosition);
+    //            break;            
             
-            default:
-                break;
-        }
-    }
-
-    ambientLightColour = light.Ambient * sampleColour;
-    directLightColour = directLightColour * sampleColour;
+    //        default:
+    //            break;
+    //    }
+    //}
     
-    return ambientLightColour + directLightColour;
+    float4 lightColour = input.Colour;
+    return float4(lightColour.rgb, 1.0f);
 }

@@ -18,6 +18,8 @@ public:
 	World();
 	~World();
 
+	Entity* GetEntity(int index);
+
 	void Update(const float& deltaTime);
 	void Render(Renderer& renderer) const;
 	void PrintHierarchy(Entity* entity, int& depth);

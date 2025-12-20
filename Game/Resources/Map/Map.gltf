@@ -1,6 +1,6 @@
 {
 	"asset":{
-		"generator":"Khronos glTF Blender I/O v4.5.48",
+		"generator":"Khronos glTF Blender I/O v5.0.21",
 		"version":"2.0"
 	},
 	"scene":0,
@@ -11,14 +11,21 @@
 				0,
 				1,
 				2,
-				3
+				3,
+				4,
+				5
 			]
 		}
 	],
 	"nodes":[
 		{
 			"mesh":0,
-			"name":"0,0"
+			"name":"+1,+ 1",
+			"translation":[
+				256,
+				0,
+				-256
+			]
 		},
 		{
 			"mesh":1,
@@ -31,21 +38,35 @@
 		},
 		{
 			"mesh":2,
-			"name":"0, -1",
+			"name":"+1, -1",
 			"translation":[
-				0,
+				256,
 				0,
 				256
 			]
 		},
 		{
 			"mesh":3,
-			"name":"-1, 0",
+			"name":"0, 0",
+			"rotation":[
+				0,
+				0.3826834559440613,
+				0,
+				0.9238795638084412
+			]
+		},
+		{
+			"mesh":4,
+			"name":"-1, +1",
 			"translation":[
 				-256,
 				0,
-				0
+				-256
 			]
+		},
+		{
+			"mesh":5,
+			"name":"Icosphere"
 		}
 	],
 	"materials":[
@@ -59,16 +80,22 @@
 					0,
 					1
 				],
-				"metallicFactor":0,
-				"roughnessFactor":0.5
+				"metallicFactor":0.20000000298023224,
+				"roughnessFactor":0.20000000298023224
 			}
 		},
 		{
 			"doubleSided":true,
-			"name":"White",
+			"name":"Blue",
 			"pbrMetallicRoughness":{
-				"metallicFactor":0,
-				"roughnessFactor":0.4000000059604645
+				"baseColorFactor":[
+					0.00236972002312541,
+					0,
+					1,
+					1
+				],
+				"metallicFactor":0.20000000298023224,
+				"roughnessFactor":0.20000000298023224
 			}
 		},
 		{
@@ -81,8 +108,8 @@
 					0.00390574149787426,
 					1
 				],
-				"metallicFactor":0,
-				"roughnessFactor":0.5
+				"metallicFactor":0.20000000298023224,
+				"roughnessFactor":0.20000000298023224
 			}
 		},
 		{
@@ -92,8 +119,22 @@
 				"baseColorTexture":{
 					"index":0
 				},
-				"metallicFactor":0,
-				"roughnessFactor":0.5
+				"metallicFactor":0.20000000298023224,
+				"roughnessFactor":0.20000000298023224
+			}
+		},
+		{
+			"doubleSided":true,
+			"name":"Pink",
+			"pbrMetallicRoughness":{
+				"baseColorFactor":[
+					0.8000074625015259,
+					0,
+					0.6621108651161194,
+					1
+				],
+				"metallicFactor":0.20000000298023224,
+				"roughnessFactor":0.20000000298023224
 			}
 		}
 	],
@@ -157,6 +198,35 @@
 					"material":3
 				}
 			]
+		},
+		{
+			"name":"0, 0.004",
+			"primitives":[
+				{
+					"attributes":{
+						"POSITION":17,
+						"NORMAL":18,
+						"TEXCOORD_0":19,
+						"TANGENT":20
+					},
+					"indices":4,
+					"material":4
+				}
+			]
+		},
+		{
+			"name":"Icosphere",
+			"primitives":[
+				{
+					"attributes":{
+						"POSITION":21,
+						"NORMAL":22,
+						"TEXCOORD_0":23,
+						"TANGENT":24
+					},
+					"indices":25
+				}
+			]
 		}
 	],
 	"textures":[
@@ -178,14 +248,14 @@
 			"componentType":5126,
 			"count":1485,
 			"max":[
-				256,
+				128.00001525878906,
 				0,
-				0
+				128.00013732910156
 			],
 			"min":[
+				-127.99998474121094,
 				0,
-				0,
-				-256
+				-127.99986267089844
 			],
 			"type":"VEC3"
 		},
@@ -218,14 +288,14 @@
 			"componentType":5126,
 			"count":1485,
 			"max":[
-				256,
+				128.00001525878906,
 				0,
-				0
+				128.00013732910156
 			],
 			"min":[
+				-127.99998474121094,
 				0,
-				0,
-				-256
+				-127.99986267089844
 			],
 			"type":"VEC3"
 		},
@@ -252,14 +322,14 @@
 			"componentType":5126,
 			"count":1485,
 			"max":[
-				256,
+				128.00001525878906,
 				0,
-				0
+				128.00013732910156
 			],
 			"min":[
+				-127.99998474121094,
 				0,
-				0,
-				-256
+				-127.99986267089844
 			],
 			"type":"VEC3"
 		},
@@ -286,14 +356,14 @@
 			"componentType":5126,
 			"count":1485,
 			"max":[
-				256,
+				128.00001525878906,
 				0,
-				0
+				128.00013732910156
 			],
 			"min":[
+				-127.99998474121094,
 				0,
-				0,
-				-256
+				-127.99986267089844
 			],
 			"type":"VEC3"
 		},
@@ -314,6 +384,80 @@
 			"componentType":5126,
 			"count":1485,
 			"type":"VEC4"
+		},
+		{
+			"bufferView":17,
+			"componentType":5126,
+			"count":1485,
+			"max":[
+				128.00001525878906,
+				0,
+				128.00013732910156
+			],
+			"min":[
+				-127.99998474121094,
+				0,
+				-127.99986267089844
+			],
+			"type":"VEC3"
+		},
+		{
+			"bufferView":18,
+			"componentType":5126,
+			"count":1485,
+			"type":"VEC3"
+		},
+		{
+			"bufferView":19,
+			"componentType":5126,
+			"count":1485,
+			"type":"VEC2"
+		},
+		{
+			"bufferView":20,
+			"componentType":5126,
+			"count":1485,
+			"type":"VEC4"
+		},
+		{
+			"bufferView":21,
+			"componentType":5126,
+			"count":240,
+			"max":[
+				14.265868186950684,
+				181.19712829589844,
+				14.999999046325684
+			],
+			"min":[
+				-14.265868186950684,
+				151.19712829589844,
+				-14.999999046325684
+			],
+			"type":"VEC3"
+		},
+		{
+			"bufferView":22,
+			"componentType":5126,
+			"count":240,
+			"type":"VEC3"
+		},
+		{
+			"bufferView":23,
+			"componentType":5126,
+			"count":240,
+			"type":"VEC2"
+		},
+		{
+			"bufferView":24,
+			"componentType":5126,
+			"count":240,
+			"type":"VEC4"
+		},
+		{
+			"bufferView":25,
+			"componentType":5123,
+			"count":240,
+			"type":"SCALAR"
 		}
 	],
 	"bufferViews":[
@@ -418,6 +562,60 @@
 			"byteLength":23760,
 			"byteOffset":276912,
 			"target":34962
+		},
+		{
+			"buffer":0,
+			"byteLength":17820,
+			"byteOffset":300672,
+			"target":34962
+		},
+		{
+			"buffer":0,
+			"byteLength":17820,
+			"byteOffset":318492,
+			"target":34962
+		},
+		{
+			"buffer":0,
+			"byteLength":11880,
+			"byteOffset":336312,
+			"target":34962
+		},
+		{
+			"buffer":0,
+			"byteLength":23760,
+			"byteOffset":348192,
+			"target":34962
+		},
+		{
+			"buffer":0,
+			"byteLength":2880,
+			"byteOffset":371952,
+			"target":34962
+		},
+		{
+			"buffer":0,
+			"byteLength":2880,
+			"byteOffset":374832,
+			"target":34962
+		},
+		{
+			"buffer":0,
+			"byteLength":1920,
+			"byteOffset":377712,
+			"target":34962
+		},
+		{
+			"buffer":0,
+			"byteLength":3840,
+			"byteOffset":379632,
+			"target":34962
+		},
+		{
+			"buffer":0,
+			"byteLength":480,
+			"byteOffset":383472,
+			"target":34963
 		}
 	],
 	"samplers":[
@@ -428,7 +626,7 @@
 	],
 	"buffers":[
 		{
-			"byteLength":300672,
+			"byteLength":383952,
 			"uri":"Map.bin"
 		}
 	]
