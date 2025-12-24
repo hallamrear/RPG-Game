@@ -24,6 +24,7 @@ cbuffer PerObjectConstantBuffer : register(b1)
 {
 	/* 64b */ float4x4 World;
 	/* 32b */ Material MaterialData;
+	/* 4b * MAX_TEXTURES_PER_SHADER */ uint TextureSlotEnabled[MAX_TEXTURES_PER_SHADER];
 };
 
 struct Light
@@ -34,12 +35,12 @@ struct Light
     float OuterCutoff;
     float4 Position;
     float4 Direction;
-    float4 Ambient;
     float4 Diffuse;
-    float4 Specular;
+    float3 Specular;
+    float SpecularPower;
     float4 Attenuation;
     float4 Strength;
-    float4 Padding[8];
+    float4 Padding[9];
 };
 
 cbuffer LightingBuffer : register(b2)
@@ -64,7 +65,6 @@ struct VS_STANDARD_VERTEX_OUTPUT
     float3 Tangent : TANGENT0;
     float3 TangentW : TANGENT1;
     float2 UV : TEXCOORD;
-    float4 Colour : COLOR0;
 };
 
 struct VS_COLOUR_ONLY_INPUT

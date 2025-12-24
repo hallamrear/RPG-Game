@@ -133,5 +133,9 @@
     <None Include="Resources\StressTest.bin">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="Resources\Suzanne.gltf" />
+    <None Include="Resources\Suzanne.bin">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

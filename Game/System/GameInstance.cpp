@@ -3,9 +3,12 @@
 #include <System/Debug.h>
 #include <System/SceneLoader.h>
 #include <System/GeometryLoader.h>
-#include <Graphics/ConstantBuffer.h>
+#include <System/TextureLoader.h>
+#include <Graphics/BufferStructures.h>
+#include <Graphics/Texturing/Texture.h>
+#include <Graphics/Texturing/Material.h>
 #include <World/Entity.h>
-
+#include <Graphics/Geometry/Model.h>
 #include <World/World.h>
 
 GameInstance::GameInstance()
@@ -52,6 +55,7 @@ bool GameInstance::Initialise(const HWND& windowHandle)
 
 	m_World = new World();
 	m_IsInitalised &= SceneLoader::LoadSceneFromFileIntoWorld(m_Renderer, *m_World, "Resources/Map/Map.gltf");
+	m_IsInitalised &= SceneLoader::LoadSceneFromFileIntoWorld(m_Renderer, *m_World, "Resources/Suzanne.gltf");
 
 	m_ConstantBuffer = new ConstantBuffer();
 	DirectX::XMStoreFloat4x4(&m_ConstantBuffer->View, DirectX::XMMatrixIdentity());
@@ -61,20 +65,33 @@ bool GameInstance::Initialise(const HWND& windowHandle)
 
 	for (size_t i = 0; i < MAX_LIGHT_COUNT; i++)
 	{
-		m_LightBuffer->LightData[i].Enabled = 0;
-		m_LightBuffer->LightData[i].Type = (Light::LIGHT_TYPE::DIRECTIONAL);
-		m_LightBuffer->LightData[i].Position = DirectX::XMFLOAT4(0.0f, 5.0f, 0.0f, 1.0f);
-		m_LightBuffer->LightData[i].Direction = DirectX::XMFLOAT4(0.0f, -5.0f, 0.0f, 0.0f);
-		m_LightBuffer->LightData[i].Ambient = DirectX::XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
-		m_LightBuffer->LightData[i].Diffuse = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-		m_LightBuffer->LightData[i].Specular = DirectX::XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
-		m_LightBuffer->LightData[i].Attenuation = DirectX::XMFLOAT4(1.0f, 0.09f, 0.032f, 1.0f);
+		float x = (float)((int)i % 4) - 2.0f;
+		float y = (float)((int)i / 4) - 2.0f;
+
+		m_LightBuffer->LightData[i].Enabled = 1;
+		m_LightBuffer->LightData[i].Type = (Light::LIGHT_TYPE::POINT);
+		m_LightBuffer->LightData[i].Position = DirectX::XMFLOAT4(x * 150.0f, 5.0f, y * 150.0f, 1.0f);
+		DirectX::XMFLOAT3 dir = { 0.0f, -1.0f, 0.0f };
+		DirectX::XMStoreFloat4(&m_LightBuffer->LightData[i].Direction, DirectX::XMVector3Normalize(DirectX::XMLoadFloat3(&dir)));
+
+		float r = max((float)(rand() % 255) / 255.0f, 0.5f);
+		float g = max((float)(rand() % 255) / 255.0f, 0.5f);
+		float b = max((float)(rand() % 255) / 255.0f, 0.5f);
+
+		m_LightBuffer->LightData[i].Diffuse = DirectX::XMFLOAT4(r, g, b, 1.0f);
+		m_LightBuffer->LightData[i].Specular = DirectX::XMFLOAT3(r, g, b);
+		m_LightBuffer->LightData[i].SpecularPower = 32.0f;
+		//m_LightBuffer->LightData[i].Attenuation = DirectX::XMFLOAT4(1.0f, 0.09f, 0.032f, 1.0f);
+		m_LightBuffer->LightData[i].Attenuation = DirectX::XMFLOAT4(1.0f, 0.007f, 0.0002f, 1.0f);
 		m_LightBuffer->LightData[i].InnerCutoff = 0.91f;
 		m_LightBuffer->LightData[i].OuterCutoff = 0.82f;
 		m_LightBuffer->LightData[i].Strength = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	}
 
-	m_LightBuffer->LightData[0].Enabled = 1;
+	m_LightBuffer->LightData[0].Type = (Light::LIGHT_TYPE::DIRECTIONAL);
+	m_LightBuffer->LightData[0].Direction = { 0.0f, -1.0f, 0.0f, 0.0f };
+	m_LightBuffer->LightData[0].Diffuse = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	m_LightBuffer->LightData[0].Specular = DirectX::XMFLOAT3(0.05f, 0.05f, 0.05f);
 
 	//Setting to closed as the first reference to the command list will open it.
 	if (m_Renderer.GetCommandList())
@@ -140,28 +157,18 @@ void GameInstance::Update(const float& deltaTime)
 		return;
 
 	DirectX::XMVECTOR up = { 0.0f, 1.0f, 0.0f };
-
-	m_LightBuffer->LightData->Position = DirectX::XMFLOAT4(sinf(timer) * 550.0f, 50.0f, cosf(timer) * 550.0f, 1.0f);
-	m_LightBuffer->LightData->Direction = DirectX::XMFLOAT4(
-		m_LightBuffer->LightData->Position.x * -1.0f,
-		m_LightBuffer->LightData->Position.y * -1.0f,
-		m_LightBuffer->LightData->Position.z * -1.0f,
-		0.0f);
-
-	DirectX::XMStoreFloat4(&m_LightBuffer->LightData->Direction, DirectX::XMVector4Normalize(DirectX::XMLoadFloat4(&m_LightBuffer->LightData->Direction)));
 	
 	timer += deltaTime;
 	t += deltaTime;
 
-	Entity* e = m_World->GetEntity(5);
-	DirectX::XMFLOAT3 scale = { 1.0f, 1.0f, 1.0f };
-	DirectX::XMFLOAT3 translation = { m_LightBuffer->LightData->Position.x, m_LightBuffer->LightData->Position.y, m_LightBuffer->LightData->Position.z };
+	DirectX::XMFLOAT3 dir = { sinf(timer), cosf(timer), 0.0f };
+	DirectX::XMStoreFloat4(&m_LightBuffer->LightData[0].Direction, DirectX::XMVector3Normalize(DirectX::XMLoadFloat3(&dir)));
+	if (t > 2.5f)
+	{
+		t = 0.0f;
+	}
 
-	DirectX::XMStoreFloat4x4(&e->GetLocalMatrix(),
-		DirectX::XMMatrixScaling(scale.x, scale.y, scale.z) *
-		DirectX::XMMatrixTranslation(translation.x, translation.y, translation.z));
-
-	DirectX::XMVECTOR cameraPosition = { 150.0f, 150.0f, 150.0f, 0.0f };
+	DirectX::XMVECTOR cameraPosition = { sinf(timer) * 800.0f, 200.0f, cosf(timer) * 800.0f };
 	DirectX::XMVECTOR cameraTarget = { 0.0f, 0.0f, 0.0f, 0.0f };
 	DirectX::XMVECTOR cameraDirection = DirectX::XMVectorSubtract(cameraTarget, cameraPosition);
 
@@ -176,31 +183,9 @@ void GameInstance::Update(const float& deltaTime)
 	DirectX::XMStoreFloat4x4(&m_ConstantBuffer->View, DirectX::XMLoadFloat4x4(&m_Renderer.GetViewMatrix()));
 	DirectX::XMStoreFloat4x4(&m_ConstantBuffer->Projection, DirectX::XMLoadFloat4x4(&m_Renderer.GetProjectionMatrix()));
 
-
-	if (t > 1.0f)
-	{
-		t = 0.0f;
-	}
-
 	if (m_World != nullptr)
 	{
 		m_World->Update(deltaTime);
-	}
-
-	for (size_t i = 0; i < MAX_LIGHT_COUNT; i++)
-	{
-
-		if(m_LightBuffer->LightData[i].Enabled)
-		{
-			Debug::LogMessage(
-				"Light %i:\n" \
-				"\t Pos: %f %f %f\n" \
-				"\t Dir: %f %f %f\n",
-				i,
-				m_LightBuffer->LightData[i].Position.x, m_LightBuffer->LightData[i].Position.y, m_LightBuffer->LightData[i].Position.z,
-				m_LightBuffer->LightData[i].Direction.x, m_LightBuffer->LightData[i].Direction.y, m_LightBuffer->LightData[i].Direction.z
-			);
-		}
 	}
 }
 

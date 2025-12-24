@@ -25,6 +25,10 @@ struct PushConstants
 {
 	/* 64b */ DirectX::XMFLOAT4X4 World;
 	/* 32b */ Material MaterialData;
+	/* 4b * MAX_TEXTURES_PER_SHADER */ UINT32 TextureSlotEnabled[MAX_TEXTURES_PER_SHADER];
+
+	PushConstants();
+	~PushConstants();
 };
 
 class LightBuffer

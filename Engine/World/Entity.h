@@ -13,8 +13,8 @@ private:
 	Entity* m_Parent;
 	DirectX::XMFLOAT4X4 m_LocalMatrix;
 	DirectX::XMFLOAT4X4 m_WorldMatrix;
-	Material m_Material;
 	const Model* m_Model;
+	Material m_Material;
 	std::vector<Entity*> m_Children;
 
 public:
@@ -31,7 +31,7 @@ public:
 	const std::string& GetName() const;
 	void SetName(const std::string& name);
 
-	void SetModel(const Model* model);
+	void SetModel(Model* model);
 
 	const DirectX::XMFLOAT4X4& GetWorldMatrix();
 	const DirectX::XMFLOAT4X4& GetLocalMatrix() const;

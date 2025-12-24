@@ -1,13 +1,13 @@
 #include "pch.h"
 #include "Renderer.h"
-#include <System/Debug.h>
-#include <Graphics/ConstantBuffer.h>
-#include <Graphics/Vertex.h>
-#include <Graphics/ColourOnlyVertex.h>
+#include "Texturing/Texture.h"
 #include <filesystem>
 #include <fstream>
+#include <Graphics/ColourOnlyVertex.h>
+#include <Graphics/BufferStructures.h>
+#include <Graphics/Vertex.h>
 #include <iostream>
-#include "Texturing/Texture.h"
+#include <System/Debug.h>
 
 #define FAILED_RETURN(hr) if(FAILED(hr)) return !FAILED(hr);
 
@@ -53,7 +53,7 @@ Renderer::Renderer()
     m_DefaultVertexShaderBlob = nullptr;
     m_DefaultPipeline = nullptr;
     m_RootSignature = nullptr;
-
+    m_PushConstants = nullptr;
     m_CBVHeaps = new ID3D12DescriptorHeap * [m_SwapChainBufferCount];
     m_ConstantBufferAddressArray = new char*[m_SwapChainBufferCount];
     m_ConstantBufferGPUUploaderArray = new ID3D12Resource*[m_SwapChainBufferCount];
@@ -105,6 +105,12 @@ Renderer::~Renderer()
     {
         delete[] m_CBVHeaps;
         m_CBVHeaps = nullptr;
+    }
+
+    if (m_PushConstants != nullptr)
+    {
+        delete m_PushConstants;
+        m_PushConstants = nullptr;
     }
 }
 
@@ -235,7 +241,9 @@ bool Renderer::Initialise(Renderer& renderer, const HWND& windowHandle)
     hr = renderer.CreateNullDescriptors();
     renderer.m_IsInitialised &= SUCCEEDED(hr);
     FAILED_RETURN(hr)
-   
+
+    renderer.m_PushConstants = new PushConstants();
+
     if (renderer.IsInitialised() == false)
     {
         Debug::LogSevere("Failed to initialise renderer.\n");
@@ -252,6 +260,13 @@ void Renderer::Shutdown(Renderer& renderer)
         return;
     }
     
+
+    if (renderer.m_PushConstants != nullptr)
+    {
+        delete renderer.m_PushConstants;
+        renderer.m_PushConstants = nullptr;
+    }
+
     renderer.DestroyNullDescriptors();
     renderer.DestroyGraphicsPipelines();
     renderer.DestroyLoadedShaders();
@@ -291,16 +306,29 @@ HRESULT Renderer::AssignTextureToSlot(const int& index, Texture* texture)
     CD3DX12_CPU_DESCRIPTOR_HANDLE destDescriptor(m_PerObjectSRVHeap->GetCPUDescriptorHandleForHeapStart());
     destDescriptor.Offset(index * GetSRVDescriptorHeapSize());
 
+    if (m_PushConstants == nullptr)
+    {
+        Debug::LogMessage("Trying to use an invalid push constant buffer.\n");
+        return E_POINTER;
+    }
+
+    m_PushConstants->TextureSlotEnabled[index] = false;
+
+    D3D12_CPU_DESCRIPTOR_HANDLE handle = GetNullTextureDescriptor();
+
     if (texture != nullptr)
     {
         if (texture->IsLoaded())
         {
-            m_Device->CopyDescriptorsSimple(1, destDescriptor, texture->GetCPUHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-            return S_OK;
+            handle = texture->GetCPUHandle();
+            m_PushConstants->TextureSlotEnabled[index] = true;
         }
     }
 
-    m_Device->CopyDescriptorsSimple(1, destDescriptor, GetNullTextureDescriptor(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    m_Device->CopyDescriptorsSimple(1, destDescriptor, handle, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+    UploadPushConstants();
+
     return S_OK;
 }
 
@@ -1107,7 +1135,7 @@ HRESULT Renderer::CreateRootSignatureAndDescriptorTable()
 
     //Push Constants
     D3D12_ROOT_CONSTANTS rootConstants{};
-    rootConstants.Num32BitValues = sizeof(PushConstants) / sizeof(UINT);
+    rootConstants.Num32BitValues = sizeof(PushConstants) / sizeof(UINT32);
     rootConstants.RegisterSpace = 0;
     rootConstants.ShaderRegister = 1;
     D3D12_ROOT_DESCRIPTOR pushConstantDescriptor{};
@@ -1416,7 +1444,7 @@ HRESULT Renderer::CreateNullDescriptors()
     if (FAILED(result))
     {
         Debug::LogSevere("Failed to execute and reset command list during texture buffer creation.\n");
-        return SUCCEEDED(result);
+        return result;
     }
 
     m_NullTextureDescriptor = srvCpuHandle;
@@ -1579,17 +1607,24 @@ void Renderer::SetClearColour(const DirectX::XMFLOAT4& newColour)
     m_ClearColour = newColour;
 }
 
+void Renderer::UploadPushConstants()
+{
+    m_CommandList->SetGraphicsRoot32BitConstants(1, sizeof(PushConstants) / sizeof(UINT32), m_PushConstants, 0);
+}
+
 HRESULT Renderer::UpdateWorldMatrix(const DirectX::XMFLOAT4X4& worldMatrix)
 {
     CUSTOM_ASSERT(m_IsInitialised);
-    m_CommandList->SetGraphicsRoot32BitConstants(1, sizeof(DirectX::XMFLOAT4X4) / sizeof(UINT), &worldMatrix, offsetof(PushConstants, World) / sizeof(UINT));
+    m_PushConstants->World = worldMatrix;
+    UploadPushConstants();
     return S_OK;
 }
 
 HRESULT Renderer::UpdateMaterialBuffer(const Material& material)
 {
     CUSTOM_ASSERT(m_IsInitialised);
-    m_CommandList->SetGraphicsRoot32BitConstants(1, sizeof(Material) / sizeof(UINT), &material, offsetof(PushConstants, MaterialData) / sizeof(UINT));
+    m_PushConstants->MaterialData = material;
+    UploadPushConstants();
     return S_OK;
 }
 

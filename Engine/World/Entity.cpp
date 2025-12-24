@@ -1,7 +1,7 @@
 #include "pch.h"
 #include "Entity.h"
 #include <Graphics/Renderer.h>
-#include <Graphics/ConstantBuffer.h>
+#include <Graphics/BufferStructures.h>
 #include <Graphics/Geometry/Model.h>
 #include <System/GeometryLoader.h>
 

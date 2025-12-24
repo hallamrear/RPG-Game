@@ -150,10 +150,6 @@ bool SceneLoader::LoadSceneFromGLTF(Renderer& renderer, World& world, tinygltf::
                 translation.z = gltfModel.nodes[i].translation[2];
             }
 
-            translation.x -= 10.0f;
-            translation.y -= 10.0f;
-            translation.z -= 10.0f;
-
             Debug::LogMessage("\tScale : { %f, %f, %f }\n", scale.x, scale.y, scale.z);
             Debug::LogMessage("\tRotation : { %f, %f, %f, %f }\n", rotation.x, rotation.y, rotation.z, rotation.w);
             Debug::LogMessage("\tTranslation : { %f, %f, %f }\n", translation.x, translation.y, translation.z);

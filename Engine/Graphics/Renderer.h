@@ -2,6 +2,7 @@
 #include <Graphics/DX12Includes.h>
 #include <Defines.h>
 
+struct PushConstants;
 class ConstantBuffer;
 class LightBuffer;
 class Material;
@@ -109,6 +110,9 @@ private:
 	D3D12_CPU_DESCRIPTOR_HANDLE m_NullTextureDescriptor;
 	HRESULT CreateNullDescriptors();
 	void DestroyNullDescriptors();
+
+	PushConstants* m_PushConstants;
+	void UploadPushConstants();
 
 protected:
 

@@ -17,12 +17,12 @@ public:
 	float OuterCutoff;
 	DirectX::XMFLOAT4 Position;
 	DirectX::XMFLOAT4 Direction;
-	DirectX::XMFLOAT4 Ambient;
 	DirectX::XMFLOAT4 Diffuse;
-	DirectX::XMFLOAT4 Specular;
+	DirectX::XMFLOAT3 Specular;
+	float SpecularPower;
 	DirectX::XMFLOAT4 Attenuation;
 	DirectX::XMFLOAT4 Strength;
-	DirectX::XMFLOAT4 Padding[8];
+	DirectX::XMFLOAT4 Padding[9];
 
 	Light();
 	~Light();

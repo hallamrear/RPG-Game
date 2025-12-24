@@ -150,7 +150,7 @@
     <ClInclude Include="System\FileLoadingIncludes.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Graphics\ConstantBuffer.h">
+    <ClInclude Include="Graphics\BufferStructures.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="World\Entity.h">
@@ -203,7 +203,7 @@
     <ClCompile Include="System\TextureLoader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Graphics\ConstantBuffer.cpp">
+    <ClCompile Include="Graphics\BufferStructures.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="World\Entity.cpp">

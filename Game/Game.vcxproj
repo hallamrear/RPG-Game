@@ -290,6 +290,12 @@
     <None Include="Resources\StressTest.gltf">
       <DeploymentContent>true</DeploymentContent>
     </None>
+    <None Include="Resources\Suzanne.bin">
+      <DeploymentContent>true</DeploymentContent>
+    </None>
+    <None Include="Resources\Suzanne.gltf">
+      <DeploymentContent>true</DeploymentContent>
+    </None>
     <None Include="Resources\Test_Model.bin">
       <DeploymentContent>true</DeploymentContent>
     </None>

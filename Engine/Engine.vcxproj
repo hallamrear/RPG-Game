@@ -186,7 +186,7 @@
     <ClInclude Include="Graphics\Texturing\Material.h" />
     <ClInclude Include="System\SceneLoader.h" />
     <ClInclude Include="World\Entity.h" />
-    <ClInclude Include="Graphics\ConstantBuffer.h" />
+    <ClInclude Include="Graphics\BufferStructures.h" />
     <ClInclude Include="External\json.hpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
@@ -260,7 +260,7 @@
     <ClCompile Include="System\FileLoadingIncludes.cpp" />
     <ClCompile Include="System\SceneLoader.cpp" />
     <ClCompile Include="World\Entity.cpp" />
-    <ClCompile Include="Graphics\ConstantBuffer.cpp" />
+    <ClCompile Include="Graphics\BufferStructures.cpp" />
     <ClCompile Include="Graphics\Geometry\Model.cpp" />
     <ClCompile Include="Graphics\Lighting\Light.cpp" />
     <ClCompile Include="System\GeometryLoader.cpp" />
