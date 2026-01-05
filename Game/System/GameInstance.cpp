@@ -9,9 +9,10 @@
 #include <Graphics/Texturing/Material.h>
 #include <World/Entity.h>
 #include <Graphics/Geometry/Model.h>
+#include <System/Events/EventSystem.h>
 #include <World/World.h>
 
-GameInstance::GameInstance()
+GameInstance::GameInstance() : m_EventSystem(EventSystem::GetInstance())
 {
 	m_IsInitalised = false;
 	m_IsRunning = false;
@@ -141,10 +142,19 @@ void GameInstance::OnResize(const int& w, const int& h)
 	}
 }
 
-void GameInstance::ProcessInput()
+void GameInstance::OnKeyboardInput(const UINT& message, const WPARAM& wParam, const LPARAM& lParam)
+{
+	Event* inputEvent = new Event(INPUT_EVENT);
+	inputEvent->Data.Input.Key = wParam;
+	m_EventSystem.PushEvent(inputEvent);
+}
+
+void GameInstance::ProcessEvents(const float& deltaTime)
 {
 	if (!IsRunning())
 		return;
+
+	m_EventSystem.ProcessPendingEvents(deltaTime);
 }
 
 static float timer = 0.0f;
@@ -172,15 +182,17 @@ void GameInstance::Update(const float& deltaTime)
 	DirectX::XMVECTOR cameraTarget = { 0.0f, 0.0f, 0.0f, 0.0f };
 	DirectX::XMVECTOR cameraDirection = DirectX::XMVectorSubtract(cameraTarget, cameraPosition);
 
-	DirectX::XMStoreFloat4x4(&m_Renderer.GetViewMatrix(), DirectX::XMMatrixTranspose(
+	/*DirectX::XMStoreFloat4x4(&m_Renderer.GetViewMatrix(), DirectX::XMMatrixTranspose(
 		DirectX::XMMatrixLookAtLH(
 			cameraPosition,
 			cameraTarget,
-			up)));
+			up)));*/
 
+	DirectX::XMFLOAT4X4 vm = m_Renderer.GetViewMatrix();
+	
 	DirectX::XMStoreFloat4(&m_ConstantBuffer->CameraPosition, cameraPosition);
 	DirectX::XMStoreFloat4(&m_ConstantBuffer->CameraDirection, cameraDirection);
-	DirectX::XMStoreFloat4x4(&m_ConstantBuffer->View, DirectX::XMLoadFloat4x4(&m_Renderer.GetViewMatrix()));
+	DirectX::XMStoreFloat4x4(&m_ConstantBuffer->View, DirectX::XMLoadFloat4x4(&vm));
 	DirectX::XMStoreFloat4x4(&m_ConstantBuffer->Projection, DirectX::XMLoadFloat4x4(&m_Renderer.GetProjectionMatrix()));
 
 	if (m_World != nullptr)

@@ -69,7 +69,6 @@ Renderer::Renderer()
         m_CBVHeaps[i] = nullptr;
     }
 
-    DirectX::XMStoreFloat4x4(&m_ViewMatrix, DirectX::XMMatrixIdentity());
     DirectX::XMStoreFloat4x4(&m_ProjectionMatrix, DirectX::XMMatrixIdentity());
 }
 
@@ -342,14 +341,9 @@ DirectX::XMFLOAT4X4& Renderer::GetProjectionMatrix()
     return m_ProjectionMatrix;
 }
 
-const DirectX::XMFLOAT4X4& Renderer::GetViewMatrix() const
+const DirectX::XMFLOAT4X4 Renderer::GetViewMatrix() const
 {
-    return m_ViewMatrix;
-}
-
-DirectX::XMFLOAT4X4& Renderer::GetViewMatrix()
-{
-    return m_ViewMatrix;
+    return m_Camera.GetViewMatrix();
 }
 
 HRESULT Renderer::ResizeSwapchain(const int& newWidth, const int& newHeight)
@@ -915,7 +909,6 @@ HRESULT Renderer::UpdateViewportAndScissorRect()
     m_ScissorRect.right = m_WindowWidth;
     m_ScissorRect.bottom = m_WindowHeight;
 
-    DirectX::XMStoreFloat4x4(&m_ViewMatrix, DirectX::XMMatrixTranspose(DirectX::XMMatrixLookAtLH({ 0.0f, 1.0f, -5.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f })));
     DirectX::XMStoreFloat4x4(&m_ProjectionMatrix, DirectX::XMMatrixTranspose(DirectX::XMMatrixPerspectiveFovLH(90.0f * (3.1415926535f / 180.0f), 1920.0f / 1080.0f, DEFAULT_NEAR_PLANE, DEFAULT_FAR_PLANE)));
 
     return S_OK;

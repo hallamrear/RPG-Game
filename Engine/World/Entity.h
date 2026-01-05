@@ -14,7 +14,6 @@ private:
 	DirectX::XMFLOAT4X4 m_LocalMatrix;
 	DirectX::XMFLOAT4X4 m_WorldMatrix;
 	const Model* m_Model;
-	Material m_Material;
 	std::vector<Entity*> m_Children;
 
 public:
@@ -31,16 +30,12 @@ public:
 	const std::string& GetName() const;
 	void SetName(const std::string& name);
 
-	void SetModel(Model* model);
+	void SetModel(const Model* model);
 
 	const DirectX::XMFLOAT4X4& GetWorldMatrix();
 	const DirectX::XMFLOAT4X4& GetLocalMatrix() const;
 	DirectX::XMFLOAT4X4& GetLocalMatrix();
 	void SetLocalMatrix(const DirectX::XMFLOAT4X4& localMatrix);
-
-	Material& GetMaterial();
-	const Material& GetMaterial() const;
-	void SetMaterial(const Material& material);
 
 	const int& GetID() const;
 	virtual void Update(const float& deltaTime);

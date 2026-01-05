@@ -183,7 +183,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="System\Events\Event.h" />
+    <ClInclude Include="Graphics\Camera.h" />
+    <ClInclude Include="System\Events\EventSystem.h" />
     <ClInclude Include="Graphics\Texturing\Material.h" />
+    <ClInclude Include="System\InputHandler.h" />
     <ClInclude Include="System\SceneLoader.h" />
     <ClInclude Include="World\Entity.h" />
     <ClInclude Include="Graphics\BufferStructures.h" />
@@ -256,7 +260,11 @@
     <ClInclude Include="World\World.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="System\Events\Event.cpp" />
+    <ClCompile Include="Graphics\Camera.cpp" />
+    <ClCompile Include="System\Events\EventSystem.cpp" />
     <ClCompile Include="Graphics\Texturing\Material.cpp" />
+    <ClCompile Include="System\InputHandler.cpp" />
     <ClCompile Include="System\FileLoadingIncludes.cpp" />
     <ClCompile Include="System\SceneLoader.cpp" />
     <ClCompile Include="World\Entity.cpp" />

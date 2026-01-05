@@ -1,5 +1,6 @@
 #pragma once
 #include <Graphics/DX12Includes.h>
+#include <Graphics/Camera.h>
 #include <Defines.h>
 
 struct PushConstants;
@@ -11,6 +12,7 @@ class Texture;
 class Renderer
 {
 private:
+	Camera m_Camera;
 	int m_WindowWidth;
 	int m_WindowHeight;
 	bool m_IsInitialised;
@@ -104,7 +106,6 @@ private:
 	HRESULT CreateGraphicsPipelines();
 	void DestroyGraphicsPipelines();
 
-	DirectX::XMFLOAT4X4 m_ViewMatrix;
 	DirectX::XMFLOAT4X4 m_ProjectionMatrix;
 
 	D3D12_CPU_DESCRIPTOR_HANDLE m_NullTextureDescriptor;
@@ -160,8 +161,7 @@ public:
 
 	const DirectX::XMFLOAT4X4& GetProjectionMatrix() const;
 	DirectX::XMFLOAT4X4& GetProjectionMatrix();
-	const DirectX::XMFLOAT4X4& GetViewMatrix() const;
-	DirectX::XMFLOAT4X4& GetViewMatrix();
+	const DirectX::XMFLOAT4X4 GetViewMatrix() const;
 
 	HRESULT ResizeSwapchain(const int& newWidth, const int& newHeight);
 

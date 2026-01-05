@@ -98,7 +98,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         clockDelta = (currentTime - previousTime);
         deltaTime = clockDelta.count();
 
-        gInstance->ProcessInput();
+        gInstance->ProcessEvents(deltaTime);
         gInstance->Update(deltaTime);
         gInstance->Render();
 
@@ -213,6 +213,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         }
         break;
 
+    case WM_KEYDOWN:
+    {
+        gInstance->OnKeyboardInput(message, wParam, lParam);
+    }
+    break;
+
     case WM_SIZE:
     {
         if (gInstance != nullptr)
@@ -240,6 +246,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
             UINT width = LOWORD(lParam);
             UINT height = HIWORD(lParam);
+
             gInstance->OnResize(width, height);
         }
     }

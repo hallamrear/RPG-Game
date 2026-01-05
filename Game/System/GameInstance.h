@@ -4,6 +4,7 @@
 class ConstantBuffer;
 class LightBuffer;
 class World;
+class EventSystem;
 
 class GameInstance
 {
@@ -11,6 +12,7 @@ private:
 	bool m_IsInitalised;
 	bool m_IsRunning;
 	Renderer m_Renderer;
+	EventSystem& m_EventSystem;
 	ConstantBuffer* m_ConstantBuffer;
 	LightBuffer* m_LightBuffer;
 	World* m_World;
@@ -26,8 +28,9 @@ public:
 	void Shutdown();
 
 	void OnResize(const int& w, const int& h);
+	void OnKeyboardInput(const UINT& message, const WPARAM& wParam, const LPARAM& lParam);
 
-	void ProcessInput();
+	void ProcessEvents(const float& deltaTime);
 	void Update(const float& deltaTime);
 	void Render();
 };
