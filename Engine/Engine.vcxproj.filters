@@ -180,6 +180,9 @@
     <ClInclude Include="System\Events\Event.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="MathsDefines.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Engine.cpp">

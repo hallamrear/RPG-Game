@@ -1,13 +1,13 @@
 #include "pch.h"
 #include "Camera.h"
 #include <System/Debug.h>
-
+#include <MathsDefines.h>
 
 Camera::Camera() : EventHandler()
 {
 	DirectX::XMStoreFloat4x4(&m_WorldMatrix, DirectX::XMMatrixIdentity());
 	DirectX::XMStoreFloat4x4(&m_RotationMatrix, DirectX::XMMatrixIdentity());
-	m_LeftVector = { 1.0f, 0.0f, 0.0f };
+	m_RightVector = { 1.0f, 0.0f, 0.0f };
 	m_UpVector = { 0.0f, 1.0f, 0.0f };
 	m_ForwardVector = { 0.0f, 0.0f, 1.0f };
 	m_Translation = { 0.0f, 0.0f, 0.0f };
@@ -21,19 +21,20 @@ Camera::~Camera()
 
 void Camera::UpdateTransformMatrix()
 {
+	m_Rotation.x = fmodf(m_Rotation.x, 360.0f);
+	m_Rotation.y = fmodf(m_Rotation.y, 360.0f);
+	m_Rotation.z = fmodf(m_Rotation.z, 360.0f);
+
+	DirectX::XMStoreFloat4x4(&m_RotationMatrix, DirectX::XMMatrixIdentity() * DirectX::XMMatrixRotationRollPitchYaw(m_Rotation.x, m_Rotation.y, m_Rotation.z));
 	DirectX::XMStoreFloat4x4(&m_WorldMatrix, DirectX::XMMatrixIdentity() * DirectX::XMLoadFloat4x4(&m_RotationMatrix) * DirectX::XMMatrixTranslation(m_Translation.x, m_Translation.y, m_Translation.z));
+	
+	DirectX::XMStoreFloat3(&m_RightVector, DirectX::XMVector3Normalize(DirectX::XMVector3Transform(DirectX::XMLoadFloat3(&BASIS_RIGHT_VECTOR), DirectX::XMLoadFloat4x4(&m_RotationMatrix))));
+	DirectX::XMStoreFloat3(&m_UpVector, DirectX::XMVector3Normalize(DirectX::XMVector3Transform(DirectX::XMLoadFloat3(&BASIS_UP_VECTOR), DirectX::XMLoadFloat4x4(&m_RotationMatrix))));
+	DirectX::XMStoreFloat3(&m_ForwardVector, DirectX::XMVector3Normalize(DirectX::XMVector3Transform(DirectX::XMLoadFloat3(&BASIS_FORWARD_VECTOR), DirectX::XMLoadFloat4x4(&m_RotationMatrix))));
 
-	m_LeftVector.x = m_WorldMatrix.m[0][0];
-	m_LeftVector.y = m_WorldMatrix.m[0][1];
-	m_LeftVector.z = m_WorldMatrix.m[0][2];
-
-	m_UpVector.x = m_WorldMatrix.m[1][0];
-	m_UpVector.y = m_WorldMatrix.m[1][1];
-	m_UpVector.z = m_WorldMatrix.m[1][2];
-
-	m_ForwardVector.x = m_WorldMatrix.m[2][0];
-	m_ForwardVector.y = m_WorldMatrix.m[2][1];
-	m_ForwardVector.z = m_WorldMatrix.m[2][2];
+	Debug::LogMessage("Up: %f %f %f\n", m_UpVector.x, m_UpVector.y, m_UpVector.z);
+	Debug::LogMessage("Left: %f %f %f\n", m_RightVector.x, m_RightVector.y, m_RightVector.z);
+	Debug::LogMessage("Forward: % f % f % f\n", m_ForwardVector.x, m_ForwardVector.y, m_ForwardVector.z);
 }
 
 void Camera::Move(const DirectX::XMFLOAT3& movement)
@@ -44,9 +45,19 @@ void Camera::Move(const DirectX::XMFLOAT3& movement)
 	UpdateTransformMatrix();
 }
 
-void Camera::RotateEuler(const DirectX::XMFLOAT3& rotationEuler)
+void Camera::RotateEulerRadians(const DirectX::XMFLOAT3& rotationEulerRadians)
 {
-	DirectX::XMStoreFloat4x4(&m_RotationMatrix, DirectX::XMMatrixMultiply(DirectX::XMMatrixRotationRollPitchYaw(rotationEuler.x, rotationEuler.y, rotationEuler.z), DirectX::XMLoadFloat4x4(&m_RotationMatrix)));
+	m_Rotation.x += (RADIANS_TO_DEGREES * rotationEulerRadians.x);
+	m_Rotation.y += (RADIANS_TO_DEGREES * rotationEulerRadians.y);
+	m_Rotation.z += (RADIANS_TO_DEGREES * rotationEulerRadians.z);
+	UpdateTransformMatrix();
+}
+
+void Camera::RotateEulerDegrees(const DirectX::XMFLOAT3& rotationEulerDegrees)
+{
+	m_Rotation.x += (rotationEulerDegrees.x);
+	m_Rotation.y += (rotationEulerDegrees.y);
+	m_Rotation.z += (rotationEulerDegrees.z);
 	UpdateTransformMatrix();
 }
 
@@ -67,32 +78,32 @@ bool Camera::HandleEvent(const float& deltaTime, const Event& event)
 	case INPUT_EVENT:
 	{
 		float step = (5000.0f * deltaTime);
-		float rotation = 1000.0f * deltaTime;
+		float rotation = 200.0f * deltaTime;
 
 		switch (event.Data.Input.Key)
 		{
 			/* E Key */
-		case 0x45: RotateEuler({ 0.0f, +1.0F * rotation, 0.0f }); break;
+		case 0x45: RotateEulerDegrees({ 0.0f, +1.0F * rotation, 0.0f }); break;
 			/* Q Key */
-		case 0x51: RotateEuler({ 0.0f, -1.0F * rotation, 0.0f }); break;
+		case 0x51: RotateEulerDegrees({ 0.0f, -1.0F * rotation, 0.0f }); break;
 
 			/* R Key */
-		case 0x52: RotateEuler({ 0.0f, +1.0F * rotation, 0.0f }); break;
+		case 0x52: RotateEulerDegrees({ -1.0F * rotation, 0.0f, 0.0f }); break;
 			/* F Key */
-		case 0x46: RotateEuler({ m_LeftVector.x * rotation, m_LeftVector.y * rotation, m_LeftVector.z * rotation }); break;
+		case 0x46: RotateEulerDegrees({ +1.0F * rotation, 0.0f, 0.0f }); break;
 
 			/* Up Arrow */
 		case VK_UP: Move({ m_ForwardVector.x * step, m_ForwardVector.y * step, m_ForwardVector.z * step }); break;
 			/* Down Arrow */
-		case VK_DOWN:  Move({ 0.0f, 0.0f, -step }); break;
+		case VK_DOWN:  Move({ m_ForwardVector.x * -step, m_ForwardVector.y * -step, m_ForwardVector.z * -step }); break;
 			/* Left Arrow */
-		case VK_LEFT:  Move({ -step, 0.0f, 0.0f }); break;
+		case VK_LEFT:  Move({ m_RightVector.x * -step, m_RightVector.y * -step, m_RightVector.z * -step }); break;
 			/* Right Arrow */
-		case VK_RIGHT: Move({ step, 0.0f, 0.0f }); break;
+		case VK_RIGHT: Move({ m_RightVector.x * step, m_RightVector.y * step, m_RightVector.z * step }); break;
 			/* Space Bar */
 		case VK_SPACE: Move({ m_UpVector.x * step, m_UpVector.y * step, m_UpVector.z * step }); break;
 			/* Left Shift */
-		case VK_LSHIFT: Move({ 0.0f, -step, 0.0f }); break;
+		case VK_LSHIFT: Move({ m_UpVector.x * -step, m_UpVector.y * -step, m_UpVector.z * -step }); break;
 
 		default:
 			break;

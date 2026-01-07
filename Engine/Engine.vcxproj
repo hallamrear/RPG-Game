@@ -183,6 +183,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="MathsDefines.h" />
     <ClInclude Include="System\Events\Event.h" />
     <ClInclude Include="Graphics\Camera.h" />
     <ClInclude Include="System\Events\EventSystem.h" />
