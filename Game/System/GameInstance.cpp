@@ -57,6 +57,8 @@ bool GameInstance::Initialise(const HWND& windowHandle)
 	m_World = new World();
 	m_IsInitalised &= SceneLoader::LoadSceneFromFileIntoWorld(m_Renderer, *m_World, "Resources/Map/Map.gltf");
 	m_IsInitalised &= SceneLoader::LoadSceneFromFileIntoWorld(m_Renderer, *m_World, "Resources/Suzanne.gltf");
+	m_IsInitalised &= SceneLoader::LoadSceneFromFileIntoWorld(m_Renderer, *m_World, "Resources/OSRS_Model.gltf");
+	m_IsInitalised &= SceneLoader::LoadSceneFromFileIntoWorld(m_Renderer, *m_World, "Resources/Test2DSquare.gltf");
 
 	m_ConstantBuffer = new ConstantBuffer();
 	DirectX::XMStoreFloat4x4(&m_ConstantBuffer->View, DirectX::XMMatrixIdentity());
@@ -182,18 +184,12 @@ void GameInstance::Update(const float& deltaTime)
 	DirectX::XMVECTOR cameraTarget = { 0.0f, 0.0f, 0.0f, 0.0f };
 	DirectX::XMVECTOR cameraDirection = DirectX::XMVectorSubtract(cameraTarget, cameraPosition);
 
-	/*DirectX::XMStoreFloat4x4(&m_Renderer.GetViewMatrix(), DirectX::XMMatrixTranspose(
-		DirectX::XMMatrixLookAtLH(
-			cameraPosition,
-			cameraTarget,
-			up)));*/
-
 	DirectX::XMFLOAT4X4 vm = m_Renderer.GetViewMatrix();
 	
 	DirectX::XMStoreFloat4(&m_ConstantBuffer->CameraPosition, cameraPosition);
 	DirectX::XMStoreFloat4(&m_ConstantBuffer->CameraDirection, cameraDirection);
 	DirectX::XMStoreFloat4x4(&m_ConstantBuffer->View, DirectX::XMLoadFloat4x4(&vm));
-	DirectX::XMStoreFloat4x4(&m_ConstantBuffer->Projection, DirectX::XMLoadFloat4x4(&m_Renderer.GetProjectionMatrix()));
+	DirectX::XMStoreFloat4x4(&m_ConstantBuffer->Projection, DirectX::XMLoadFloat4x4(&m_Renderer.GetPerspectiveProjectionMatrix()));
 
 	if (m_World != nullptr)
 	{
@@ -222,6 +218,12 @@ void GameInstance::Render()
 	{
 		m_World->Render(m_Renderer);
 	}
+
+	m_Renderer.BeginOrthographicDrawing();
+
+	m_Renderer.TestTwoDimensionDraw();
+
+	m_Renderer.EndOrthographicDrawing();
 
 	m_Renderer.PresentFrame();
 }

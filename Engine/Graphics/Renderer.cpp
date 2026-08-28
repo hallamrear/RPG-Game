@@ -69,7 +69,8 @@ Renderer::Renderer()
         m_CBVHeaps[i] = nullptr;
     }
 
-    DirectX::XMStoreFloat4x4(&m_ProjectionMatrix, DirectX::XMMatrixIdentity());
+    DirectX::XMStoreFloat4x4(&m_PerspProjectionMatrix, DirectX::XMMatrixIdentity());
+    DirectX::XMStoreFloat4x4(&m_OrthoProjectionMatrix, DirectX::XMMatrixIdentity());
 }
 
 Renderer::~Renderer()
@@ -331,14 +332,24 @@ HRESULT Renderer::AssignTextureToSlot(const int& index, Texture* texture)
     return S_OK;
 }
 
-const DirectX::XMFLOAT4X4& Renderer::GetProjectionMatrix() const
+const DirectX::XMFLOAT4X4& Renderer::GetPerspectiveProjectionMatrix() const
 {
-    return m_ProjectionMatrix;
+    return m_PerspProjectionMatrix;
 }
 
-DirectX::XMFLOAT4X4& Renderer::GetProjectionMatrix()
+DirectX::XMFLOAT4X4& Renderer::GetPerspectiveProjectionMatrix()
 {
-    return m_ProjectionMatrix;
+    return m_PerspProjectionMatrix;
+}
+
+const DirectX::XMFLOAT4X4& Renderer::GetOrthographicProjectionMatrix() const
+{
+    return m_OrthoProjectionMatrix;
+}
+
+DirectX::XMFLOAT4X4& Renderer::GetOrthographicProjectionMatrix()
+{
+    return m_OrthoProjectionMatrix;
 }
 
 const DirectX::XMFLOAT4X4 Renderer::GetViewMatrix() const
@@ -398,6 +409,21 @@ HRESULT Renderer::ResizeSwapchain(const int& newWidth, const int& newHeight)
     }
 
     return result;
+}
+
+void Renderer::BeginOrthographicDrawing()
+{
+    m_Con
+    UpdateConstantBuffer()
+}
+
+void Renderer::TestTwoDimensionDraw()
+{
+}
+
+void Renderer::EndOrthographicDrawing()
+{
+
 }
 
 HRESULT Renderer::CreateDeviceAndFactory()
@@ -909,7 +935,8 @@ HRESULT Renderer::UpdateViewportAndScissorRect()
     m_ScissorRect.right = m_WindowWidth;
     m_ScissorRect.bottom = m_WindowHeight;
 
-    DirectX::XMStoreFloat4x4(&m_ProjectionMatrix, DirectX::XMMatrixTranspose(DirectX::XMMatrixPerspectiveFovLH(90.0f * (3.1415926535f / 180.0f), 1920.0f / 1080.0f, DEFAULT_NEAR_PLANE, DEFAULT_FAR_PLANE)));
+    DirectX::XMStoreFloat4x4(&m_PerspProjectionMatrix, DirectX::XMMatrixTranspose(DirectX::XMMatrixPerspectiveFovLH(90.0f * (3.1415926535f / 180.0f), m_WindowWidth / m_WindowHeight, DEFAULT_NEAR_PLANE, DEFAULT_FAR_PLANE)));
+    DirectX::XMStoreFloat4x4(&m_OrthoProjectionMatrix, DirectX::XMMatrixTranspose(DirectX::XMMatrixOrthographicLH(m_WindowWidth, m_WindowHeight, DEFAULT_NEAR_PLANE, DEFAULT_FAR_PLANE)));
 
     return S_OK;
 }

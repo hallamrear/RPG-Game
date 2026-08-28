@@ -106,7 +106,8 @@ private:
 	HRESULT CreateGraphicsPipelines();
 	void DestroyGraphicsPipelines();
 
-	DirectX::XMFLOAT4X4 m_ProjectionMatrix;
+	DirectX::XMFLOAT4X4 m_PerspProjectionMatrix;
+	DirectX::XMFLOAT4X4 m_OrthoProjectionMatrix;
 
 	D3D12_CPU_DESCRIPTOR_HANDLE m_NullTextureDescriptor;
 	HRESULT CreateNullDescriptors();
@@ -159,11 +160,19 @@ public:
 	const D3D12_CPU_DESCRIPTOR_HANDLE& GetNullTextureDescriptor() const;
 	HRESULT AssignTextureToSlot(const int& index, Texture* texture);
 
-	const DirectX::XMFLOAT4X4& GetProjectionMatrix() const;
-	DirectX::XMFLOAT4X4& GetProjectionMatrix();
+	const DirectX::XMFLOAT4X4& GetPerspectiveProjectionMatrix() const;
+	DirectX::XMFLOAT4X4& GetPerspectiveProjectionMatrix();
+
+	const DirectX::XMFLOAT4X4& GetOrthographicProjectionMatrix() const;
+	DirectX::XMFLOAT4X4& GetOrthographicProjectionMatrix();
+
 	const DirectX::XMFLOAT4X4 GetViewMatrix() const;
 
 	HRESULT ResizeSwapchain(const int& newWidth, const int& newHeight);
+
+	void BeginOrthographicDrawing();
+	void TestTwoDimensionDraw();
+	void EndOrthographicDrawing();
 
 	void ClearFrame();
 	HRESULT FlushCommandQueue();
