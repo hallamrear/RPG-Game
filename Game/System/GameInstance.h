@@ -5,6 +5,7 @@ class ConstantBuffer;
 class LightBuffer;
 class World;
 class EventSystem;
+class Model;
 
 class GameInstance
 {
@@ -16,6 +17,8 @@ private:
 	ConstantBuffer* m_ConstantBuffer;
 	LightBuffer* m_LightBuffer;
 	World* m_World;
+	Model* m_Flat2DSquare;
+	Texture* m_TestTexture;
 
 public:
 	GameInstance();

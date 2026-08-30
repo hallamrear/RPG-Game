@@ -5,11 +5,9 @@
 
 cbuffer PerFrameConstantBuffer : register(b0)
 {
-    float4x4 View;
-    float4x4 Projection;
     float4 CameraPositionW;
     float4 CameraDirectionW;
-    float4 Padding[6];
+    float4 Padding[14];
 };
 
 struct Material
@@ -23,8 +21,10 @@ struct Material
 cbuffer PerObjectConstantBuffer : register(b1)
 {
 	/* 64b */ float4x4 World;
-	/* 32b */ Material MaterialData;
-	/* 4b * MAX_TEXTURES_PER_SHADER */ uint TextureSlotEnabled[MAX_TEXTURES_PER_SHADER];
+    float4x4 View;
+    float4x4 Projection;
+	///* 32b */ Material MaterialData;
+	///* 4b * MAX_TEXTURES_PER_SHADER */ uint TextureSlotEnabled[MAX_TEXTURES_PER_SHADER];
 };
 
 struct Light

@@ -11,11 +11,9 @@
 class ConstantBuffer
 {
 public:
-	DirectX::XMFLOAT4X4 View;
-	DirectX::XMFLOAT4X4 Projection;
 	DirectX::XMFLOAT4 CameraPosition;
 	DirectX::XMFLOAT4 CameraDirection;
-	DirectX::XMFLOAT4 Padding[6];
+	DirectX::XMFLOAT4 Padding[14];
 
 	ConstantBuffer();
 	~ConstantBuffer();
@@ -24,8 +22,10 @@ public:
 struct PushConstants
 {
 	/* 64b */ DirectX::XMFLOAT4X4 World;
-	/* 32b */ Material MaterialData;
-	/* 4b * MAX_TEXTURES_PER_SHADER */ UINT32 TextureSlotEnabled[MAX_TEXTURES_PER_SHADER];
+	/* 64b */ DirectX::XMFLOAT4X4 View;
+	/* 64b */ DirectX::XMFLOAT4X4 Projection;
+	///* 32b */ Material MaterialData;
+	///* 4b * MAX_TEXTURES_PER_SHADER */ UINT32 TextureSlotEnabled[MAX_TEXTURES_PER_SHADER];
 
 	PushConstants();
 	~PushConstants();

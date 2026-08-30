@@ -9,6 +9,7 @@
 #include <Graphics/Geometry/Model.h>
 #include <Graphics/Renderer.h>
 #include <System/FileLoadingIncludes.h>
+#include <Graphics/ColourOnlyVertex.h>
 
 bool GeometryLoader::CreateModelFromGLTF(Renderer& renderer, Model& model, tinygltf::Model& gltfModel, const std::string& parentPath)
 {
@@ -383,119 +384,6 @@ bool GeometryLoader::GetIndexDataFromGLTFPrimitive(std::vector<uint16_t>& indice
     memcpy(dst, src, dataSize);
 
     return true;
-}
-
-Mesh* GeometryLoader::CreateMeshFromData(Renderer& renderer, Model& model, std::vector<Vertex>& vertices, std::vector<uint16_t>& indices)
-{
-    ID3D12Resource* vertexBuffer = nullptr;
-    ID3D12Resource* vbUploader = nullptr;
-    ID3D12Resource* indexBuffer = nullptr;
-    ID3D12Resource* ibUploader = nullptr;
-
-    size_t vbSize = sizeof(Vertex) * vertices.size();
-
-    HRESULT result = renderer.CreateDefaultBuffer(vertexBuffer, vbUploader, (const void*)vertices.data(), vbSize);
-
-    if (FAILED(result) || vbUploader == nullptr)
-    {
-        Debug::LogSevere("Failed to create vertex buffer for gltf model.\n");
-
-        if (vertexBuffer != nullptr)
-        {
-            vertexBuffer->Release();
-            vertexBuffer = nullptr;
-        }
-
-        if (vbUploader != nullptr)
-        {
-            vbUploader->Release();
-            vbUploader = nullptr;
-        }
-
-        return nullptr;
-    }
-
-    CD3DX12_RESOURCE_BARRIER vbTransition = CD3DX12_RESOURCE_BARRIER::Transition(vertexBuffer, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
-    renderer.GetCommandList()->ResourceBarrier(1, &vbTransition);
-
-    vbUploader->SetName(L"VB Uploader");
-
-    D3D12_VERTEX_BUFFER_VIEW vbv{};
-    vbv.BufferLocation = vertexBuffer->GetGPUVirtualAddress();
-    vbv.SizeInBytes = vbSize;
-    vbv.StrideInBytes = sizeof(Vertex);
-
-    size_t ibSize = sizeof(uint16_t) * indices.size();
-
-    D3D12_INDEX_BUFFER_VIEW ibv{};
-
-    bool usesIndexBuffer = ibSize > 0;
-
-    if (usesIndexBuffer)
-    {
-        result = renderer.CreateDefaultBuffer(indexBuffer, ibUploader, (const void*)indices.data(), ibSize);
-
-        if (FAILED(result) || ibUploader == nullptr)
-        {
-            Debug::LogSevere("Failed to create vertex buffer for gltf model.\n");
-
-            if (indexBuffer != nullptr)
-            {
-                indexBuffer->Release();
-                indexBuffer = nullptr;
-            }
-
-            if (ibUploader != nullptr)
-            {
-                ibUploader->Release();
-                ibUploader = nullptr;
-            }
-
-            return nullptr;
-        }
-
-        CD3DX12_RESOURCE_BARRIER ibTransition = CD3DX12_RESOURCE_BARRIER::Transition(indexBuffer, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
-        renderer.GetCommandList()->ResourceBarrier(1, &ibTransition);
-
-        ibUploader->SetName(L"IB Uploader");
-
-        ibv.BufferLocation = indexBuffer->GetGPUVirtualAddress();
-        ibv.Format = DXGI_FORMAT::DXGI_FORMAT_R16_UINT;
-        ibv.SizeInBytes = ibSize;
-    }
-
-    if (vbSize <= 0 && ibSize <= 0)
-    {
-        Debug::LogSevere("Failed to create mesh with given data.\n");
-        return nullptr;
-    }
-
-    Mesh* mesh = model.CreateNewMesh();
-    mesh->m_UsesIndexBuffer = usesIndexBuffer;
-    mesh->m_VertexBuffer = vertexBuffer;
-    mesh->m_VertexBufferView = vbv;
-    mesh->m_VertexCount = vertices.size();
-
-    if (mesh->m_UsesIndexBuffer)
-    {
-        mesh->m_IndexBuffer = indexBuffer;
-        mesh->m_IndexBufferView = ibv;
-        mesh->m_IndexCount = indices.size();
-    }
-
-    if (vbUploader != nullptr)
-    {
-        vbUploader->Release();
-        vbUploader = nullptr;
-    }
-
-    if (ibUploader != nullptr)
-    {
-        ibUploader->Release();
-        ibUploader = nullptr;
-    }
-
-    return mesh;
 }
 
 bool GeometryLoader::LoadTexturesFromGLTF(Renderer& renderer, Model& model, tinygltf::Model& gltfModel, const std::string& parentPath)

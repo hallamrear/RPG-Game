@@ -11,6 +11,7 @@
 #include <Graphics/Geometry/Model.h>
 #include <System/Events/EventSystem.h>
 #include <World/World.h>
+#include <Graphics/ColourOnlyVertex.h>
 
 GameInstance::GameInstance() : m_EventSystem(EventSystem::GetInstance())
 {
@@ -19,6 +20,8 @@ GameInstance::GameInstance() : m_EventSystem(EventSystem::GetInstance())
 	m_ConstantBuffer = nullptr;
 	m_LightBuffer = nullptr;
 	m_World = nullptr;
+	m_Flat2DSquare = nullptr;
+	m_TestTexture = nullptr;
 }
 
 GameInstance::~GameInstance()
@@ -38,8 +41,8 @@ void GameInstance::SetIsRunning(const bool& state)
 
 bool GameInstance::Initialise(const HWND& windowHandle)
 {
-	if(m_IsInitalised)
-	{ 
+	if (m_IsInitalised)
+	{
 		Debug::LogWarning("Calling initialise on an existing instance.\n");
 		return false;
 	}
@@ -57,13 +60,34 @@ bool GameInstance::Initialise(const HWND& windowHandle)
 	m_World = new World();
 	m_IsInitalised &= SceneLoader::LoadSceneFromFileIntoWorld(m_Renderer, *m_World, "Resources/Map/Map.gltf");
 	m_IsInitalised &= SceneLoader::LoadSceneFromFileIntoWorld(m_Renderer, *m_World, "Resources/Suzanne.gltf");
-	m_IsInitalised &= SceneLoader::LoadSceneFromFileIntoWorld(m_Renderer, *m_World, "Resources/OSRS_Model.gltf");
-	m_IsInitalised &= SceneLoader::LoadSceneFromFileIntoWorld(m_Renderer, *m_World, "Resources/Test2DSquare.gltf");
+	//m_IsInitalised &= SceneLoader::LoadSceneFromFileIntoWorld(m_Renderer, *m_World, "Resources/OSRS_Model.gltf");
+	//m_IsInitalised &= SceneLoader::LoadSceneFromFileIntoWorld(m_Renderer, *m_World, "Resources/Test2DSquare.gltf");
+
+	m_TestTexture = new Texture();
+	TextureLoader::LoadFromFile(m_Renderer, *m_TestTexture, "Resources/Orange/texture_01.png");
+
+	float hw = 640.0f / 2.0f;
+	float hh = 480.0f / 2.0f;
+
+	std::vector<ColourOnlyVertex> vertices =
+	{
+		{ { -hw, -hh, 1.0f }, { 1.0f, 0.0f, 0.0f, 1.0f } },
+		{ { +hw, -hh, 1.0f }, { 0.0f, 1.0f, 0.0f, 1.0f } },
+		{ { -hw, +hh, 1.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } },
+		{ { +hw, +hh, 1.0f }, { 1.0f, 1.0f, 1.0f, 1.0f } },
+	};
+
+	std::vector<uint16_t> indices = 
+	{
+		0, 1, 2,
+		2, 1, 3
+	};
+
+	m_Flat2DSquare = new Model();
+	Mesh& mesh = *GeometryLoader::CreateMeshFromData(m_Renderer, *m_Flat2DSquare, vertices, indices, D3D12_PRIMITIVE_TOPOLOGY::D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	m_ConstantBuffer = new ConstantBuffer();
-	DirectX::XMStoreFloat4x4(&m_ConstantBuffer->View, DirectX::XMMatrixIdentity());
-	DirectX::XMStoreFloat4x4(&m_ConstantBuffer->Projection, DirectX::XMMatrixIdentity());
-
+	
 	m_LightBuffer = new LightBuffer();
 
 	for (size_t i = 0; i < MAX_LIGHT_COUNT; i++)
@@ -188,8 +212,10 @@ void GameInstance::Update(const float& deltaTime)
 	
 	DirectX::XMStoreFloat4(&m_ConstantBuffer->CameraPosition, cameraPosition);
 	DirectX::XMStoreFloat4(&m_ConstantBuffer->CameraDirection, cameraDirection);
-	DirectX::XMStoreFloat4x4(&m_ConstantBuffer->View, DirectX::XMLoadFloat4x4(&vm));
-	DirectX::XMStoreFloat4x4(&m_ConstantBuffer->Projection, DirectX::XMLoadFloat4x4(&m_Renderer.GetPerspectiveProjectionMatrix()));
+
+	PushConstants& pushConstants = m_Renderer.GetPushConstants();
+	DirectX::XMStoreFloat4x4(&pushConstants.View, DirectX::XMLoadFloat4x4(&vm));
+	DirectX::XMStoreFloat4x4(&pushConstants.Projection, DirectX::XMLoadFloat4x4(&m_Renderer.GetPerspectiveProjectionMatrix()));
 
 	if (m_World != nullptr)
 	{
@@ -219,11 +245,9 @@ void GameInstance::Render()
 		m_World->Render(m_Renderer);
 	}
 
-	m_Renderer.BeginOrthographicDrawing();
+	m_Renderer.BeginOrthographicDrawing(*m_ConstantBuffer);
 
-	m_Renderer.TestTwoDimensionDraw();
-
-	m_Renderer.EndOrthographicDrawing();
+	m_Renderer.TestTwoDimensionDraw(m_Flat2DSquare, m_TestTexture);
 
 	m_Renderer.PresentFrame();
 }

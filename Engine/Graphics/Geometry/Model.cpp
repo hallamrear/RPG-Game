@@ -45,6 +45,14 @@ Model::~Model()
 	m_Materials.clear();
 }
 
+void Model::AddTexture(Texture* texture)
+{
+	if (texture != nullptr)
+	{
+		m_Textures.push_back(texture);
+	}
+}
+
 void Model::Render(Renderer& renderer) const
 {
 	for (size_t i = 0; i < m_Meshes.size(); i++)

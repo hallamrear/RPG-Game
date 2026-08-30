@@ -3,8 +3,6 @@
 
 ConstantBuffer::ConstantBuffer()
 {
-	View = DirectX::XMFLOAT4X4();
-	Projection = DirectX::XMFLOAT4X4();
 	CameraPosition = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 	CameraDirection = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 
@@ -16,8 +14,6 @@ ConstantBuffer::ConstantBuffer()
 
 ConstantBuffer::~ConstantBuffer()
 {
-	View = DirectX::XMFLOAT4X4();
-	Projection = DirectX::XMFLOAT4X4();
 	CameraPosition = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 	CameraDirection = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 
@@ -29,22 +25,26 @@ ConstantBuffer::~ConstantBuffer()
 
 PushConstants::PushConstants()
 {
+	View = DirectX::XMFLOAT4X4();
+	Projection = DirectX::XMFLOAT4X4();
 	World = DirectX::XMFLOAT4X4();
-	MaterialData = Material();
-
-	for (size_t i = 0; i < MAX_TEXTURES_PER_SHADER; i++)
-	{
-		TextureSlotEnabled[i] = false;
-	}
+	//MaterialData = Material();
+	//
+	//for (size_t i = 0; i < MAX_TEXTURES_PER_SHADER; i++)
+	//{
+	//	TextureSlotEnabled[i] = false;
+	//}
 }
 
 PushConstants::~PushConstants()
 {
+	View = DirectX::XMFLOAT4X4();
+	Projection = DirectX::XMFLOAT4X4();
 	World = DirectX::XMFLOAT4X4();
-	MaterialData = Material();
-
-	for (size_t i = 0; i < MAX_TEXTURES_PER_SHADER; i++)
-	{
-		TextureSlotEnabled[i] = false;
-	}
+	//MaterialData = Material();
+	//
+	//for (size_t i = 0; i < MAX_TEXTURES_PER_SHADER; i++)
+	//{
+	//	TextureSlotEnabled[i] = false;
+	//}
 }

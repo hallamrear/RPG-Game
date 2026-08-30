@@ -312,7 +312,7 @@ HRESULT Renderer::AssignTextureToSlot(const int& index, Texture* texture)
         return E_POINTER;
     }
 
-    m_PushConstants->TextureSlotEnabled[index] = false;
+    //m_PushConstants->TextureSlotEnabled[index] = false;
 
     D3D12_CPU_DESCRIPTOR_HANDLE handle = GetNullTextureDescriptor();
 
@@ -321,7 +321,7 @@ HRESULT Renderer::AssignTextureToSlot(const int& index, Texture* texture)
         if (texture->IsLoaded())
         {
             handle = texture->GetCPUHandle();
-            m_PushConstants->TextureSlotEnabled[index] = true;
+            //m_PushConstants->TextureSlotEnabled[index] = true;
         }
     }
 
@@ -411,19 +411,33 @@ HRESULT Renderer::ResizeSwapchain(const int& newWidth, const int& newHeight)
     return result;
 }
 
-void Renderer::BeginOrthographicDrawing()
+void Renderer::BeginOrthographicDrawing(ConstantBuffer& constantBuffer)
 {
-    m_Con
-    UpdateConstantBuffer()
+    DirectX::XMFLOAT4X4 vm = GetViewMatrix();
+
+    DirectX::XMStoreFloat4x4(&m_PushConstants->World, DirectX::XMMatrixIdentity());
+    DirectX::XMStoreFloat4x4(&m_PushConstants->View, (DirectX::XMLoadFloat4x4(&vm)));
+    DirectX::XMStoreFloat4x4(&m_PushConstants->Projection, (DirectX::XMLoadFloat4x4(&GetOrthographicProjectionMatrix())));
+    UploadPushConstants();
+    
+    UpdateConstantBuffer(constantBuffer);
+
+
+
+    m_CommandList->SetPipelineState(m_OrthoPipeline);
 }
 
-void Renderer::TestTwoDimensionDraw()
+void Renderer::TestTwoDimensionDraw(Model* model, Texture* texture)
 {
-}
+    if (texture != nullptr)
+    {
+        AssignTextureToSlot(0, texture);
+    }
 
-void Renderer::EndOrthographicDrawing()
-{
-
+    if (model != nullptr)
+    {
+        model->Render(*this);
+    }
 }
 
 HRESULT Renderer::CreateDeviceAndFactory()
@@ -934,9 +948,9 @@ HRESULT Renderer::UpdateViewportAndScissorRect()
     m_ScissorRect.top = 0;
     m_ScissorRect.right = m_WindowWidth;
     m_ScissorRect.bottom = m_WindowHeight;
-
-    DirectX::XMStoreFloat4x4(&m_PerspProjectionMatrix, DirectX::XMMatrixTranspose(DirectX::XMMatrixPerspectiveFovLH(90.0f * (3.1415926535f / 180.0f), m_WindowWidth / m_WindowHeight, DEFAULT_NEAR_PLANE, DEFAULT_FAR_PLANE)));
-    DirectX::XMStoreFloat4x4(&m_OrthoProjectionMatrix, DirectX::XMMatrixTranspose(DirectX::XMMatrixOrthographicLH(m_WindowWidth, m_WindowHeight, DEFAULT_NEAR_PLANE, DEFAULT_FAR_PLANE)));
+    
+    DirectX::XMStoreFloat4x4(&m_PerspProjectionMatrix, DirectX::XMMatrixTranspose(DirectX::XMMatrixPerspectiveFovLH(90.0f * (3.1415926535f / 180.0f), (float)m_WindowWidth / (float)m_WindowHeight, DEFAULT_NEAR_PLANE, DEFAULT_FAR_PLANE)));
+    DirectX::XMStoreFloat4x4(&m_OrthoProjectionMatrix, DirectX::XMMatrixTranspose(DirectX::XMMatrixOrthographicLH((float)m_WindowWidth, (float)m_WindowHeight, FLT_EPSILON, DEFAULT_FAR_PLANE)));
 
     return S_OK;
 }
@@ -1347,6 +1361,23 @@ HRESULT Renderer::FindAndCreateShaders()
         return result;
     }
 
+    result = ReadShaderData("PS_DefaultOrtho.cso", m_DefaultOrthoPixelShaderBlob);
+
+    if (FAILED(result))
+    {
+        //Error message displayed in function.
+        return result;
+    }
+
+    result = ReadShaderData("VS_DefaultOrtho.cso", m_DefaultOrthoVertexShaderBlob);
+
+    if (FAILED(result))
+    {
+        //Error message displayed in function.
+        return result;
+    }
+
+
     return result;
 }
 
@@ -1432,6 +1463,44 @@ HRESULT Renderer::CreateGraphicsPipelines()
     }
 
     m_ColourOnlyPipeline->SetName(L"Colour Vertex Graphics Pipeline");
+
+    result = E_POINTER;
+    if (m_DefaultOrthoVertexShaderBlob != nullptr && m_DefaultOrthoPixelShaderBlob != nullptr)
+    {
+        D3D12_RENDER_TARGET_BLEND_DESC transparencyBlend{};
+        memset(&transparencyBlend, 0x0, sizeof(D3D12_RENDER_TARGET_BLEND_DESC));
+        transparencyBlend.BlendEnable = TRUE;
+        transparencyBlend.LogicOpEnable = FALSE;
+        transparencyBlend.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+        transparencyBlend.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+        transparencyBlend.BlendOp = D3D12_BLEND_OP_ADD;
+        transparencyBlend.SrcBlendAlpha = D3D12_BLEND_ONE;
+        transparencyBlend.DestBlendAlpha = D3D12_BLEND_ZERO;
+        transparencyBlend.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+        transparencyBlend.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE::D3D12_COLOR_WRITE_ENABLE_ALL;
+
+        pipelineStateDesc.BlendState.RenderTarget[0] = transparencyBlend;
+        pipelineStateDesc.DepthStencilState.DepthEnable = FALSE;
+        pipelineStateDesc.DepthStencilState.StencilEnable = FALSE;
+        pipelineStateDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+        pipelineStateDesc.InputLayout.NumElements = m_ColourOnlyInputLayout.size();
+        pipelineStateDesc.InputLayout.pInputElementDescs = m_ColourOnlyInputLayout.data();
+        pipelineStateDesc.VS.pShaderBytecode = m_DefaultOrthoVertexShaderBlob->GetBufferPointer();
+        pipelineStateDesc.VS.BytecodeLength = m_DefaultOrthoVertexShaderBlob->GetBufferSize();
+        pipelineStateDesc.PS.pShaderBytecode = m_DefaultOrthoPixelShaderBlob->GetBufferPointer();
+        pipelineStateDesc.PS.BytecodeLength = m_DefaultOrthoPixelShaderBlob->GetBufferSize();
+        pipelineStateDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE::D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+        result = m_Device->CreateGraphicsPipelineState(&pipelineStateDesc, IID_PPV_ARGS(&m_OrthoPipeline));
+    }
+
+    if (FAILED(result))
+    {
+        Debug::LogSevere("Failed to create Orthographic 2D Graphics pipeline state.\n");
+        return result;
+    }
+
+    m_OrthoPipeline->SetName(L"Orthographic 2D Graphics Pipeline");
+
 
     return result;
 }
@@ -1627,6 +1696,11 @@ void Renderer::SetClearColour(const DirectX::XMFLOAT4& newColour)
     m_ClearColour = newColour;
 }
 
+PushConstants& Renderer::GetPushConstants()
+{
+    return *m_PushConstants;
+}
+
 void Renderer::UploadPushConstants()
 {
     m_CommandList->SetGraphicsRoot32BitConstants(1, sizeof(PushConstants) / sizeof(UINT32), m_PushConstants, 0);
@@ -1643,7 +1717,7 @@ HRESULT Renderer::UpdateWorldMatrix(const DirectX::XMFLOAT4X4& worldMatrix)
 HRESULT Renderer::UpdateMaterialBuffer(const Material& material)
 {
     CUSTOM_ASSERT(m_IsInitialised);
-    m_PushConstants->MaterialData = material;
+    //m_PushConstants->MaterialData = material;
     UploadPushConstants();
     return S_OK;
 }
@@ -1719,6 +1793,8 @@ void Renderer::ClearFrame()
     m_CommandList->SetGraphicsRootDescriptorTable(3, srvHeap);
 
     m_CommandList->SetPipelineState(m_DefaultPipeline);
+
+    m_CommandList->IASetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY::D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }
 
 void Renderer::PresentFrame()

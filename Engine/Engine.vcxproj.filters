@@ -262,6 +262,8 @@
     <FxCompile Include="Graphics\Shaders\VS_Standard.hlsl" />
     <FxCompile Include="Graphics\Shaders\VS_ColourOnly.hlsl" />
     <FxCompile Include="Graphics\Shaders\PS_ColourOnly.hlsl" />
+    <FxCompile Include="Graphics\Shaders\PS_DefaultOrtho.hlsl" />
+    <FxCompile Include="Graphics\Shaders\VS_DefaultOrtho.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Graphics\Shaders\Lighting.hlsli" />

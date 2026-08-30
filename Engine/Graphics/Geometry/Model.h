@@ -21,6 +21,7 @@ public:
 	Model();
 	~Model();
 
+	void AddTexture(Texture* texture);
 	void Render(Renderer& renderer) const;
 };
 

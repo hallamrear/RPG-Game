@@ -2,12 +2,14 @@
 #include <Graphics/DX12Includes.h>
 #include <Graphics/Camera.h>
 #include <Defines.h>
+#include <Graphics/Geometry/Model.h>
 
 struct PushConstants;
 class ConstantBuffer;
 class LightBuffer;
 class Material;
 class Texture;
+class Model;
 
 class Renderer
 {
@@ -42,7 +44,7 @@ private:
 
 	struct ID3D12CommandQueue* m_CommandQueue;
 	struct ID3D12CommandAllocator* m_CommandAllocator;
-	struct ID3D12GraphicsCommandList* m_CommandList;
+	struct ID3D12GraphicsCommandList4* m_CommandList;
 	HRESULT CreateCommandObjects();
 	void DestroyCommandObjects();
 
@@ -97,12 +99,15 @@ private:
 	ID3DBlob* m_DefaultVertexShaderBlob;
 	ID3DBlob* m_ColourOnlyPixelShaderBlob;
 	ID3DBlob* m_ColourOnlyVertexShaderBlob;
+	ID3DBlob* m_DefaultOrthoPixelShaderBlob;
+	ID3DBlob* m_DefaultOrthoVertexShaderBlob;
 	HRESULT FindAndCreateShaders();
 	HRESULT ReadShaderData(const std::string& filename, ID3DBlob*& targetBlob);
 	void DestroyLoadedShaders();
 
 	ID3D12PipelineState* m_ColourOnlyPipeline;
 	ID3D12PipelineState* m_DefaultPipeline;
+	ID3D12PipelineState* m_OrthoPipeline;
 	HRESULT CreateGraphicsPipelines();
 	void DestroyGraphicsPipelines();
 
@@ -114,7 +119,6 @@ private:
 	void DestroyNullDescriptors();
 
 	PushConstants* m_PushConstants;
-	void UploadPushConstants();
 
 protected:
 
@@ -146,6 +150,9 @@ public:
 	const DirectX::XMFLOAT4& GetClearColour() const;
 	void SetClearColour(const DirectX::XMFLOAT4& newColour);
 
+	PushConstants& GetPushConstants();
+	void UploadPushConstants();
+
 	HRESULT UpdateWorldMatrix(const DirectX::XMFLOAT4X4& worldMatrix);
 	HRESULT UpdateMaterialBuffer(const Material& mb);
 	HRESULT UpdateLightingBuffer(const LightBuffer& lb);
@@ -170,9 +177,8 @@ public:
 
 	HRESULT ResizeSwapchain(const int& newWidth, const int& newHeight);
 
-	void BeginOrthographicDrawing();
-	void TestTwoDimensionDraw();
-	void EndOrthographicDrawing();
+	void BeginOrthographicDrawing(ConstantBuffer& constantBuffer);
+	void TestTwoDimensionDraw(Model* model, Texture* texture);
 
 	void ClearFrame();
 	HRESULT FlushCommandQueue();
