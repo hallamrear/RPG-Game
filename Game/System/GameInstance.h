@@ -19,6 +19,8 @@ private:
 	World* m_World;
 	Model* m_Flat2DSquare;
 	Texture* m_TestTexture;
+	Model* m_OverlapSquare;
+	Texture* m_OverlapTexture;
 
 public:
 	GameInstance();

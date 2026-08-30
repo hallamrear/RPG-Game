@@ -114,7 +114,7 @@ bool TextureLoader::LoadFromData(Renderer& renderer, Texture& texture, const std
 		texture.m_Height = height;
 		texture.m_Width = width;
 		texture.m_IsLoaded = true;
-		texture.m_ID = m_TextureMap.size();
+		texture.m_ID = m_TextureMap.size() + 1;
 		texture.m_CPUHandle = srvCpuHandle;
 		m_TextureMap.insert({ referenceName, &texture });		
 	}

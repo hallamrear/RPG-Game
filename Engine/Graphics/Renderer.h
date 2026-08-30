@@ -76,7 +76,8 @@ private:
 	HRESULT UpdateViewportAndScissorRect();
 
 	std::vector<D3D12_INPUT_ELEMENT_DESC> m_DefaultInputLayout;
-	std::vector<D3D12_INPUT_ELEMENT_DESC> m_ColourOnlyInputLayout;
+	std::vector<D3D12_INPUT_ELEMENT_DESC> m_ColourOnlyInputLayout; 
+	std::vector<D3D12_INPUT_ELEMENT_DESC> m_UIImageVertexInputLayout;
 	HRESULT CreateInputLayout();
 	void DestroyInputLayout();
 

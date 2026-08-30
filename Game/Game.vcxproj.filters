@@ -111,6 +111,18 @@
     <Image Include="Resources\colormap-5.png">
       <Filter>Resource Files</Filter>
     </Image>
+    <Image Include="Resources\ImageC.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="Resources\ImageA.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="Resources\ImageB.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="Resources\RS_Test.png">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
   <ItemGroup>
     <None Include="Resources\Test_Model.gltf" />
@@ -137,5 +149,9 @@
     <None Include="Resources\Suzanne.bin">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="Resources\Box.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Resources\Box.gltf" />
   </ItemGroup>
 </Project>

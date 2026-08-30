@@ -23,6 +23,7 @@ cbuffer PerObjectConstantBuffer : register(b1)
 	/* 64b */ float4x4 World;
     float4x4 View;
     float4x4 Projection;
+    uint TextureIndex;
 	///* 32b */ Material MaterialData;
 	///* 4b * MAX_TEXTURES_PER_SHADER */ uint TextureSlotEnabled[MAX_TEXTURES_PER_SHADER];
 };
@@ -78,6 +79,18 @@ struct VS_COLOUR_ONLY_OUTPUT
     float4 Position : SV_POSITION;
     float4 PositionW : POSITION;
     float4 Colour : COLOR;
+};
+
+struct VS_UI_IMAGE_VERTEX_INPUT
+{
+    float4 Position : POSITION;
+    float2 UV : TEXCOORD;
+};
+
+struct VS_UI_IMAGE_VERTEX_OUTPUT
+{
+    float4 Position : SV_POSITION;
+    float2 UV : TEXCOORD;
 };
 
 #endif //__STRUCTURES_HLSL__

@@ -3,6 +3,7 @@
 #include "Texturing/Texture.h"
 #include <filesystem>
 #include <fstream>
+#include <Graphics/UIImageVertex.h>
 #include <Graphics/ColourOnlyVertex.h>
 #include <Graphics/BufferStructures.h>
 #include <Graphics/Vertex.h>
@@ -321,11 +322,11 @@ HRESULT Renderer::AssignTextureToSlot(const int& index, Texture* texture)
         if (texture->IsLoaded())
         {
             handle = texture->GetCPUHandle();
-            //m_PushConstants->TextureSlotEnabled[index] = true;
+            m_PushConstants->TextureIndex = texture->GetID();
         }
     }
 
-    m_Device->CopyDescriptorsSimple(1, destDescriptor, handle, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    //m_Device->CopyDescriptorsSimple(1, destDescriptor, handle, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
     UploadPushConstants();
 
@@ -747,7 +748,7 @@ HRESULT Renderer::CreateDescriptorHeaps()
     mainSRVDescriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
     mainSRVDescriptorHeapDesc.NumDescriptors = MAX_LOADABLE_TEXTURES;
     mainSRVDescriptorHeapDesc.NodeMask = 0;
-    mainSRVDescriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAGS::D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+    mainSRVDescriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAGS::D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
     m_Device->CreateDescriptorHeap(&mainSRVDescriptorHeapDesc, IID_PPV_ARGS(&m_MainSRVHeap));
 
     if (FAILED(result))
@@ -1191,7 +1192,7 @@ HRESULT Renderer::CreateRootSignatureAndDescriptorTable()
     //SRV Table
     D3D12_DESCRIPTOR_RANGE descriptorTableRange[1]{};
     descriptorTableRange[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-    descriptorTableRange[0].NumDescriptors = 5;
+    descriptorTableRange[0].NumDescriptors = MAX_LOADABLE_TEXTURES;
     descriptorTableRange[0].BaseShaderRegister = 0;
     descriptorTableRange[0].RegisterSpace = 0;
     descriptorTableRange[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
@@ -1200,12 +1201,13 @@ HRESULT Renderer::CreateRootSignatureAndDescriptorTable()
     descriptorTable.pDescriptorRanges = &descriptorTableRange[0];
     slotRootParameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
     slotRootParameters[3].DescriptorTable = descriptorTable;
+    slotRootParameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
     D3D12_STATIC_SAMPLER_DESC staticSamplerDesc[1]{};
     staticSamplerDesc[0].Filter = D3D12_FILTER::D3D12_FILTER_COMPARISON_MIN_LINEAR_MAG_POINT_MIP_LINEAR;
-    staticSamplerDesc[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE::D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    staticSamplerDesc[0].AddressV = D3D12_TEXTURE_ADDRESS_MODE::D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    staticSamplerDesc[0].AddressW = D3D12_TEXTURE_ADDRESS_MODE::D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    staticSamplerDesc[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE::D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+    staticSamplerDesc[0].AddressV = D3D12_TEXTURE_ADDRESS_MODE::D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+    staticSamplerDesc[0].AddressW = D3D12_TEXTURE_ADDRESS_MODE::D3D12_TEXTURE_ADDRESS_MODE_BORDER;
     staticSamplerDesc[0].MipLODBias = 0;
     staticSamplerDesc[0].MaxAnisotropy = 0;
     staticSamplerDesc[0].ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
@@ -1483,8 +1485,8 @@ HRESULT Renderer::CreateGraphicsPipelines()
         pipelineStateDesc.DepthStencilState.DepthEnable = FALSE;
         pipelineStateDesc.DepthStencilState.StencilEnable = FALSE;
         pipelineStateDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
-        pipelineStateDesc.InputLayout.NumElements = m_ColourOnlyInputLayout.size();
-        pipelineStateDesc.InputLayout.pInputElementDescs = m_ColourOnlyInputLayout.data();
+        pipelineStateDesc.InputLayout.NumElements = m_UIImageVertexInputLayout.size();
+        pipelineStateDesc.InputLayout.pInputElementDescs = m_UIImageVertexInputLayout.data();
         pipelineStateDesc.VS.pShaderBytecode = m_DefaultOrthoVertexShaderBlob->GetBufferPointer();
         pipelineStateDesc.VS.BytecodeLength = m_DefaultOrthoVertexShaderBlob->GetBufferSize();
         pipelineStateDesc.PS.pShaderBytecode = m_DefaultOrthoPixelShaderBlob->GetBufferPointer();
@@ -1677,6 +1679,7 @@ HRESULT Renderer::CreateInputLayout()
 {
     Vertex::GetElementDescription(m_DefaultInputLayout);
     ColourOnlyVertex::GetElementDescription(m_ColourOnlyInputLayout);
+    UIImageVertex::GetElementDescription(m_UIImageVertexInputLayout);
     return S_OK;
 }
 
@@ -1684,6 +1687,7 @@ void Renderer::DestroyInputLayout()
 {
     m_DefaultInputLayout.clear();
     m_ColourOnlyInputLayout.clear();
+    m_UIImageVertexInputLayout.clear();
 }
 
 const DirectX::XMFLOAT4& Renderer::GetClearColour() const
@@ -1786,7 +1790,7 @@ void Renderer::ClearFrame()
 
     m_CommandList->SetGraphicsRootSignature(m_RootSignature);
 
-    ID3D12DescriptorHeap* heaps[] = { m_PerObjectSRVHeap };
+    ID3D12DescriptorHeap* heaps[] = { m_MainSRVHeap };
     m_CommandList->SetDescriptorHeaps(_countof(heaps), heaps);
 
     CD3DX12_GPU_DESCRIPTOR_HANDLE srvHeap(heaps[0]->GetGPUDescriptorHandleForHeapStart());

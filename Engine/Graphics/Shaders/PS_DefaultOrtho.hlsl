@@ -1,13 +1,9 @@
 #include "Structures.hlsli"
 
-Texture2D<float4> DiffuseTexture : register(t0);
+Texture2D TextureList[MAX_LOADABLE_TEXTURES] : register(t0, space0);
 SamplerState linearSampler : register(s0);
 
-float4 main(VS_COLOUR_ONLY_OUTPUT input) : SV_TARGET
+float4 main(VS_UI_IMAGE_VERTEX_OUTPUT input) : SV_TARGET
 {
-    float hw = 640.0f / 2.0f;
-    float hh = 480.0f / 2.0f;
-
-    float2 uv = float2(input.Position.x / hw, input.Position.y / hh);
-    return DiffuseTexture.Sample(linearSampler, uv);
+    return TextureList[TextureIndex].SampleLevel(linearSampler, input.UV, 0);
 }

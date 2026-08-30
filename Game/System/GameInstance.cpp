@@ -11,7 +11,7 @@
 #include <Graphics/Geometry/Model.h>
 #include <System/Events/EventSystem.h>
 #include <World/World.h>
-#include <Graphics/ColourOnlyVertex.h>
+#include <Graphics/UIImageVertex.h>
 
 GameInstance::GameInstance() : m_EventSystem(EventSystem::GetInstance())
 {
@@ -58,23 +58,21 @@ bool GameInstance::Initialise(const HWND& windowHandle)
 	m_IsInitalised &= Renderer::Initialise(m_Renderer, windowHandle);
 
 	m_World = new World();
-	m_IsInitalised &= SceneLoader::LoadSceneFromFileIntoWorld(m_Renderer, *m_World, "Resources/Map/Map.gltf");
-	m_IsInitalised &= SceneLoader::LoadSceneFromFileIntoWorld(m_Renderer, *m_World, "Resources/Suzanne.gltf");
+	//m_IsInitalised &= SceneLoader::LoadSceneFromFileIntoWorld(m_Renderer, *m_World, "Resources/Map/Map.gltf");
+	//m_IsInitalised &= SceneLoader::LoadSceneFromFileIntoWorld(m_Renderer, *m_World, "Resources/Suzanne.gltf");
+	//m_IsInitalised &= SceneLoader::LoadSceneFromFileIntoWorld(m_Renderer, *m_World, "Resources/Box.gltf");
 	//m_IsInitalised &= SceneLoader::LoadSceneFromFileIntoWorld(m_Renderer, *m_World, "Resources/OSRS_Model.gltf");
 	//m_IsInitalised &= SceneLoader::LoadSceneFromFileIntoWorld(m_Renderer, *m_World, "Resources/Test2DSquare.gltf");
 
 	m_TestTexture = new Texture();
-	TextureLoader::LoadFromFile(m_Renderer, *m_TestTexture, "Resources/Orange/texture_01.png");
+	TextureLoader::LoadFromFile(m_Renderer, *m_TestTexture, "Resources/RS_Test.png");
 
-	float hw = 640.0f / 2.0f;
-	float hh = 480.0f / 2.0f;
-
-	std::vector<ColourOnlyVertex> vertices =
+	std::vector<UIImageVertex> vertices =
 	{
-		{ { -hw, -hh, 1.0f }, { 1.0f, 0.0f, 0.0f, 1.0f } },
-		{ { +hw, -hh, 1.0f }, { 0.0f, 1.0f, 0.0f, 1.0f } },
-		{ { -hw, +hh, 1.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } },
-		{ { +hw, +hh, 1.0f }, { 1.0f, 1.0f, 1.0f, 1.0f } },
+		{ { -1.0f, -1.0f, 1.0f }, { 0.0f, 1.0f } },
+		{ { +1.0f, -1.0f, 1.0f }, { 1.0f, 1.0f } },
+		{ { -1.0f, +1.0f, 1.0f }, { 0.0f, 0.0f } },
+		{ { +1.0f, +1.0f, 1.0f }, { 1.0f, 0.0f } },
 	};
 
 	std::vector<uint16_t> indices = 
@@ -85,6 +83,23 @@ bool GameInstance::Initialise(const HWND& windowHandle)
 
 	m_Flat2DSquare = new Model();
 	Mesh& mesh = *GeometryLoader::CreateMeshFromData(m_Renderer, *m_Flat2DSquare, vertices, indices, D3D12_PRIMITIVE_TOPOLOGY::D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	m_Flat2DSquare->AddTexture(m_TestTexture);
+
+
+	m_OverlapTexture = new Texture();
+	TextureLoader::LoadFromFile(m_Renderer, *m_OverlapTexture, "Resources/Orange/texture_01.png");
+	
+	vertices =
+	{
+		{ { -1.0f, -1.0f, 0.9f }, { 0.0f, 1.0f } },
+		{ { +1.0f, -1.0f, 0.9f }, { 1.0f, 1.0f } },
+		{ { -1.0f, +1.0f, 0.9f }, { 0.0f, 0.0f } },
+		{ { +1.0f, +1.0f, 0.9f }, { 1.0f, 0.0f } },
+	};
+
+	m_OverlapSquare = new Model();
+	mesh = *GeometryLoader::CreateMeshFromData(m_Renderer, *m_OverlapSquare, vertices, indices, D3D12_PRIMITIVE_TOPOLOGY::D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	m_OverlapSquare->AddTexture(m_OverlapTexture);
 
 	m_ConstantBuffer = new ConstantBuffer();
 	
@@ -247,7 +262,14 @@ void GameInstance::Render()
 
 	m_Renderer.BeginOrthographicDrawing(*m_ConstantBuffer);
 
+	DirectX::XMFLOAT4X4 scaling;
+	DirectX::XMStoreFloat4x4(&scaling, DirectX::XMMatrixScaling(640.0f, 480.0f, 1.0f));
+	m_Renderer.UpdateWorldMatrix(scaling);
 	m_Renderer.TestTwoDimensionDraw(m_Flat2DSquare, m_TestTexture);
+
+	DirectX::XMStoreFloat4x4(&scaling, DirectX::XMMatrixScaling(256.0f, 256.0f, 1.0f));
+	m_Renderer.UpdateWorldMatrix(scaling);
+	m_Renderer.TestTwoDimensionDraw(m_OverlapSquare, m_OverlapTexture);
 
 	m_Renderer.PresentFrame();
 }

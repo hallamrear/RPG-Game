@@ -59,11 +59,6 @@ void Model::Render(Renderer& renderer) const
 	{
 		for (size_t t = 0; t < 5; t++)
 		{
-			renderer.AssignTextureToSlot(t, nullptr);
-		}
-
-		for (size_t t = 0; t < 5; t++)
-		{
 			int index = m_Meshes[i]->GetTextureID();
 
 			if (index >= 0)
@@ -74,10 +69,6 @@ void Model::Render(Renderer& renderer) const
 				{
 					renderer.AssignTextureToSlot(t, texture);
 				}
-			}
-			else
-			{
-				renderer.AssignTextureToSlot(t, nullptr);
 			}
 		}
 

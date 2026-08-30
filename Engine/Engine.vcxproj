@@ -183,6 +183,9 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="Graphics\Vertex.h">
+      <DeploymentContent>false</DeploymentContent>
+    </ClInclude>
     <ClInclude Include="MathsDefines.h" />
     <ClInclude Include="System\Events\Event.h" />
     <ClInclude Include="Graphics\Camera.h" />
@@ -190,6 +193,7 @@
     <ClInclude Include="Graphics\Texturing\Material.h" />
     <ClInclude Include="System\InputHandler.h" />
     <ClInclude Include="System\SceneLoader.h" />
+    <ClInclude Include="Graphics\UIImageVertex.h" />
     <ClInclude Include="World\Entity.h" />
     <ClInclude Include="Graphics\BufferStructures.h" />
     <ClInclude Include="External\json.hpp">
@@ -255,12 +259,14 @@
     <ClInclude Include="Engine.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="pch.h" />
-    <ClInclude Include="Graphics\Vertex.h" />
     <ClInclude Include="Graphics\Texturing\Texture.h" />
     <ClInclude Include="System\TextureLoader.h" />
     <ClInclude Include="World\World.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Graphics\Vertex.cpp">
+      <DeploymentContent>false</DeploymentContent>
+    </ClCompile>
     <ClCompile Include="System\Events\Event.cpp" />
     <ClCompile Include="Graphics\Camera.cpp" />
     <ClCompile Include="System\Events\EventSystem.cpp" />
@@ -268,6 +274,7 @@
     <ClCompile Include="System\InputHandler.cpp" />
     <ClCompile Include="System\FileLoadingIncludes.cpp" />
     <ClCompile Include="System\SceneLoader.cpp" />
+    <ClCompile Include="Graphics\UIImageVertex.cpp" />
     <ClCompile Include="World\Entity.cpp" />
     <ClCompile Include="Graphics\BufferStructures.cpp" />
     <ClCompile Include="Graphics\Geometry\Model.cpp" />
@@ -284,7 +291,6 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="Graphics\Vertex.cpp" />
     <ClCompile Include="Graphics\Texturing\Texture.cpp" />
     <ClCompile Include="System\TextureLoader.cpp" />
     <ClCompile Include="World\World.cpp" />
@@ -302,6 +308,8 @@
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.1</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.1</ShaderModel>
+      <EnableUnboundedDescriptorTables Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</EnableUnboundedDescriptorTables>
+      <EnableUnboundedDescriptorTables Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</EnableUnboundedDescriptorTables>
     </FxCompile>
     <FxCompile Include="Graphics\Shaders\PS_DefaultOrtho.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
@@ -312,6 +320,8 @@
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.1</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.1</ShaderModel>
+      <EnableUnboundedDescriptorTables Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</EnableUnboundedDescriptorTables>
+      <EnableUnboundedDescriptorTables Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</EnableUnboundedDescriptorTables>
     </FxCompile>
     <FxCompile Include="Graphics\Shaders\PS_Standard.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
@@ -322,6 +332,8 @@
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.1</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.1</ShaderModel>
+      <EnableUnboundedDescriptorTables Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</EnableUnboundedDescriptorTables>
+      <EnableUnboundedDescriptorTables Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</EnableUnboundedDescriptorTables>
     </FxCompile>
     <FxCompile Include="Graphics\Shaders\VS_DefaultOrtho.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>

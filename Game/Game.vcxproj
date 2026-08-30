@@ -213,6 +213,15 @@
     <Image Include="Resources\colormap.png">
       <DeploymentContent>true</DeploymentContent>
     </Image>
+    <Image Include="Resources\ImageA.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="Resources\ImageB.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="Resources\ImageC.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
     <Image Include="Resources\Map\texture_01.png">
       <DeploymentContent>true</DeploymentContent>
     </Image>
@@ -255,6 +264,9 @@
     <Image Include="Resources\Orange\texture_13.png">
       <DeploymentContent>true</DeploymentContent>
     </Image>
+    <Image Include="Resources\RS_Test.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
     <Image Include="Resources\Test_Texture.png">
       <DeploymentContent>true</DeploymentContent>
     </Image>
@@ -266,6 +278,12 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <None Include="Resources\Box.bin">
+      <DeploymentContent>true</DeploymentContent>
+    </None>
+    <None Include="Resources\Box.gltf">
+      <DeploymentContent>true</DeploymentContent>
+    </None>
     <None Include="Resources\Map\Map.bin">
       <DeploymentContent>true</DeploymentContent>
     </None>

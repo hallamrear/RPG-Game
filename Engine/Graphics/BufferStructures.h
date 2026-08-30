@@ -24,6 +24,7 @@ struct PushConstants
 	/* 64b */ DirectX::XMFLOAT4X4 World;
 	/* 64b */ DirectX::XMFLOAT4X4 View;
 	/* 64b */ DirectX::XMFLOAT4X4 Projection;
+	UINT32 TextureIndex;
 	///* 32b */ Material MaterialData;
 	///* 4b * MAX_TEXTURES_PER_SHADER */ UINT32 TextureSlotEnabled[MAX_TEXTURES_PER_SHADER];
 
