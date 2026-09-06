@@ -1,10 +1,10 @@
 #pragma once
-#include <Graphics/DX12Includes.h>
-#include <Graphics/Camera.h>
 #include <Defines.h>
+#include <Graphics/BufferStructures.h>
+#include <Graphics/Camera.h>
+#include <Graphics/DX12Includes.h>
 #include <Graphics/Geometry/Model.h>
 
-struct PushConstants;
 class ConstantBuffer;
 class LightBuffer;
 class Material;
@@ -57,7 +57,6 @@ private:
 	struct ID3D12DescriptorHeap* m_RTVHeap;
 	struct ID3D12DescriptorHeap* m_DSVHeap;
 	struct ID3D12DescriptorHeap* m_MainSRVHeap;
-	struct ID3D12DescriptorHeap* m_PerObjectSRVHeap;
 	HRESULT CreateDescriptorHeaps();
 	void DestroyDescriptorHeaps();
 	struct D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentBackbufferView() const;
@@ -119,7 +118,8 @@ private:
 	HRESULT CreateNullDescriptors();
 	void DestroyNullDescriptors();
 
-	PushConstants* m_PushConstants;
+	PerObjectMatrixData* m_PerObjectMatrixData;
+	PerObjectTextureData* m_PerObjectTextureData;
 
 protected:
 
@@ -151,7 +151,8 @@ public:
 	const DirectX::XMFLOAT4& GetClearColour() const;
 	void SetClearColour(const DirectX::XMFLOAT4& newColour);
 
-	PushConstants& GetPushConstants();
+	PerObjectMatrixData& GetPerObjectMatrixData();
+	PerObjectTextureData& GetPerObjectTextureData();
 	void UploadPushConstants();
 
 	HRESULT UpdateWorldMatrix(const DirectX::XMFLOAT4X4& worldMatrix);

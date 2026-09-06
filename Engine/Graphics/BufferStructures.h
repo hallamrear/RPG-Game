@@ -19,17 +19,24 @@ public:
 	~ConstantBuffer();
 };
 
-struct PushConstants
+struct PerObjectMatrixData
 {
 	/* 64b */ DirectX::XMFLOAT4X4 World;
-	/* 64b */ DirectX::XMFLOAT4X4 View;
-	/* 64b */ DirectX::XMFLOAT4X4 Projection;
-	UINT32 TextureIndex;
-	///* 32b */ Material MaterialData;
-	///* 4b * MAX_TEXTURES_PER_SHADER */ UINT32 TextureSlotEnabled[MAX_TEXTURES_PER_SHADER];
+	/* 64b */ DirectX::XMFLOAT4X4 ViewProjection;
+	
+	PerObjectMatrixData();
+	~PerObjectMatrixData();
+};
 
-	PushConstants();
-	~PushConstants();
+struct PerObjectTextureData
+{
+	/* 32b */ Material MaterialData;
+	/* 32b * MAX_TEXTURES_PER_SHADER */ UINT32 TextureSlotIDs[MAX_TEXTURES_PER_SHADER];
+
+	PerObjectTextureData();
+	~PerObjectTextureData();
+
+	void Reset();
 };
 
 class LightBuffer

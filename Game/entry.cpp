@@ -91,6 +91,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             if (gInstance->IsRunning() == false)
             {
                 PostQuitMessage(0);
+                break;
             }
         }
 
@@ -198,6 +199,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 break;
             case IDM_EXIT:
                 DestroyWindow(hWnd);
+                gInstance->SetIsRunning(false);
                 break;
             default:
                 return DefWindowProc(hWnd, message, wParam, lParam);
@@ -253,9 +255,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     break;
 
     case WM_DESTROY:
-        PostQuitMessage(0);
         gInstance->SetIsRunning(false);
         break;
+
     default:
         return DefWindowProc(hWnd, message, wParam, lParam);
     }

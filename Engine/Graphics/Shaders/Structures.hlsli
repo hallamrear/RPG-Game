@@ -1,7 +1,7 @@
 #ifndef __STRUCTURES_HLSL__
 #define __STRUCTURES_HLSL__
 
-#include <../../Defines.h>
+#include "../../Defines.h"
 
 cbuffer PerFrameConstantBuffer : register(b0)
 {
@@ -21,11 +21,13 @@ struct Material
 cbuffer PerObjectConstantBuffer : register(b1)
 {
 	/* 64b */ float4x4 World;
-    float4x4 View;
-    float4x4 Projection;
-    uint TextureIndex;
-	///* 32b */ Material MaterialData;
-	///* 4b * MAX_TEXTURES_PER_SHADER */ uint TextureSlotEnabled[MAX_TEXTURES_PER_SHADER];
+    /* 64b */ float4x4 ViewProjection;
+};
+
+cbuffer PerObjectTextureBuffer : register(b2)
+{
+	/* 32b */ Material MaterialData;
+	/* 4b * MAX_TEXTURES_PER_SHADER */ uint TextureIndex[MAX_TEXTURES_PER_SHADER];
 };
 
 struct Light
@@ -44,7 +46,7 @@ struct Light
     float4 Padding[9];
 };
 
-cbuffer LightingBuffer : register(b2)
+cbuffer LightingBuffer : register(b3)
 {
     Light LightData[MAX_LIGHT_COUNT];
 };

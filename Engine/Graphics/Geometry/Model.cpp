@@ -59,17 +59,26 @@ void Model::Render(Renderer& renderer) const
 	{
 		for (size_t t = 0; t < 5; t++)
 		{
-			int index = m_Meshes[i]->GetTextureID();
-
-			if (index >= 0)
+			if (t < m_Textures.size())
 			{
-				Texture* texture = m_Textures[m_Meshes[i]->GetTextureID()];
-
-				if (texture != nullptr)
-				{
-					renderer.AssignTextureToSlot(t, texture);
-				}
+				renderer.AssignTextureToSlot(t, m_Textures[t]);
 			}
+			else
+			{
+				renderer.AssignTextureToSlot(t, nullptr);
+			}
+
+			//int index = m_Meshes[i]->GetTextureID();
+			//
+			//if (index >= 0)
+			//{
+			//	Texture* texture = m_Textures[m_Meshes[i]->GetTextureID()];
+			//
+			//	if (texture != nullptr)
+			//	{
+			//		renderer.AssignTextureToSlot(t, texture);
+			//	}
+			//}
 		}
 
 		const Material* material = &Material::GetDefaultMaterial();

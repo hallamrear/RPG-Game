@@ -58,7 +58,7 @@ bool GameInstance::Initialise(const HWND& windowHandle)
 	m_IsInitalised &= Renderer::Initialise(m_Renderer, windowHandle);
 
 	m_World = new World();
-	//m_IsInitalised &= SceneLoader::LoadSceneFromFileIntoWorld(m_Renderer, *m_World, "Resources/Map/Map.gltf");
+	m_IsInitalised &= SceneLoader::LoadSceneFromFileIntoWorld(m_Renderer, *m_World, "Resources/Map/Map.gltf");
 	//m_IsInitalised &= SceneLoader::LoadSceneFromFileIntoWorld(m_Renderer, *m_World, "Resources/Suzanne.gltf");
 	//m_IsInitalised &= SceneLoader::LoadSceneFromFileIntoWorld(m_Renderer, *m_World, "Resources/Box.gltf");
 	//m_IsInitalised &= SceneLoader::LoadSceneFromFileIntoWorld(m_Renderer, *m_World, "Resources/OSRS_Model.gltf");
@@ -228,9 +228,9 @@ void GameInstance::Update(const float& deltaTime)
 	DirectX::XMStoreFloat4(&m_ConstantBuffer->CameraPosition, cameraPosition);
 	DirectX::XMStoreFloat4(&m_ConstantBuffer->CameraDirection, cameraDirection);
 
-	PushConstants& pushConstants = m_Renderer.GetPushConstants();
-	DirectX::XMStoreFloat4x4(&pushConstants.View, DirectX::XMLoadFloat4x4(&vm));
-	DirectX::XMStoreFloat4x4(&pushConstants.Projection, DirectX::XMLoadFloat4x4(&m_Renderer.GetPerspectiveProjectionMatrix()));
+	PerObjectMatrixData& matrixData = m_Renderer.GetPerObjectMatrixData();
+	DirectX::XMStoreFloat4x4(&matrixData.ViewProjection, 
+		DirectX::XMMatrixTranspose(DirectX::XMLoadFloat4x4(&vm) * DirectX::XMLoadFloat4x4(&m_Renderer.GetPerspectiveProjectionMatrix())));
 
 	if (m_World != nullptr)
 	{
@@ -260,16 +260,16 @@ void GameInstance::Render()
 		m_World->Render(m_Renderer);
 	}
 
-	m_Renderer.BeginOrthographicDrawing(*m_ConstantBuffer);
-
-	DirectX::XMFLOAT4X4 scaling;
-	DirectX::XMStoreFloat4x4(&scaling, DirectX::XMMatrixScaling(640.0f, 480.0f, 1.0f));
-	m_Renderer.UpdateWorldMatrix(scaling);
-	m_Renderer.TestTwoDimensionDraw(m_Flat2DSquare, m_TestTexture);
-
-	DirectX::XMStoreFloat4x4(&scaling, DirectX::XMMatrixScaling(256.0f, 256.0f, 1.0f));
-	m_Renderer.UpdateWorldMatrix(scaling);
-	m_Renderer.TestTwoDimensionDraw(m_OverlapSquare, m_OverlapTexture);
+	//m_Renderer.BeginOrthographicDrawing(*m_ConstantBuffer);
+	//
+	//DirectX::XMFLOAT4X4 scaling;
+	//DirectX::XMStoreFloat4x4(&scaling, DirectX::XMMatrixScaling(640.0f, 480.0f, 1.0f));
+	//m_Renderer.UpdateWorldMatrix(scaling);
+	//m_Renderer.TestTwoDimensionDraw(m_Flat2DSquare, m_TestTexture);
+	//
+	//DirectX::XMStoreFloat4x4(&scaling, DirectX::XMMatrixScaling(256.0f, 256.0f, 1.0f));
+	//m_Renderer.UpdateWorldMatrix(scaling);
+	//m_Renderer.TestTwoDimensionDraw(m_OverlapSquare, m_OverlapTexture);
 
 	m_Renderer.PresentFrame();
 }

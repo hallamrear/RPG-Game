@@ -18,8 +18,10 @@ const DXGI_FORMAT Renderer::m_DepthStencilBufferFormat = DXGI_FORMAT::DXGI_FORMA
 
 Renderer::Renderer()
 {
+    m_OrthoPipeline = nullptr;
+    m_DefaultOrthoPixelShaderBlob = nullptr;
+    m_DefaultOrthoVertexShaderBlob = nullptr;
     m_NullTextureDescriptor = {};
-    m_PerObjectSRVHeap = nullptr;
     m_MainSRVHeap = nullptr;
     m_CBVHeaps = nullptr;
     m_ClearColour = DirectX::XMFLOAT4(0.424f, 0.725f, 0.788f, 1.0f);
@@ -54,7 +56,8 @@ Renderer::Renderer()
     m_DefaultVertexShaderBlob = nullptr;
     m_DefaultPipeline = nullptr;
     m_RootSignature = nullptr;
-    m_PushConstants = nullptr;
+    m_PerObjectMatrixData = nullptr;
+    m_PerObjectTextureData = nullptr;
     m_CBVHeaps = new ID3D12DescriptorHeap * [m_SwapChainBufferCount];
     m_ConstantBufferAddressArray = new char*[m_SwapChainBufferCount];
     m_ConstantBufferGPUUploaderArray = new ID3D12Resource*[m_SwapChainBufferCount];
@@ -106,12 +109,6 @@ Renderer::~Renderer()
     {
         delete[] m_CBVHeaps;
         m_CBVHeaps = nullptr;
-    }
-
-    if (m_PushConstants != nullptr)
-    {
-        delete m_PushConstants;
-        m_PushConstants = nullptr;
     }
 }
 
@@ -243,7 +240,8 @@ bool Renderer::Initialise(Renderer& renderer, const HWND& windowHandle)
     renderer.m_IsInitialised &= SUCCEEDED(hr);
     FAILED_RETURN(hr)
 
-    renderer.m_PushConstants = new PushConstants();
+    renderer.m_PerObjectMatrixData = new PerObjectMatrixData();
+    renderer.m_PerObjectTextureData = new PerObjectTextureData();
 
     if (renderer.IsInitialised() == false)
     {
@@ -260,12 +258,17 @@ void Renderer::Shutdown(Renderer& renderer)
         Debug::LogWarning("Calling shutdown on a renderer object that doesn't exist.");
         return;
     }
-    
 
-    if (renderer.m_PushConstants != nullptr)
+    if (renderer.m_PerObjectMatrixData != nullptr)
     {
-        delete renderer.m_PushConstants;
-        renderer.m_PushConstants = nullptr;
+        delete renderer.m_PerObjectMatrixData;
+        renderer.m_PerObjectMatrixData = nullptr;
+    }
+
+    if (renderer.m_PerObjectTextureData != nullptr)
+    {
+        delete renderer.m_PerObjectTextureData;
+        renderer.m_PerObjectTextureData = nullptr;
     }
 
     renderer.DestroyNullDescriptors();
@@ -304,29 +307,22 @@ const D3D12_CPU_DESCRIPTOR_HANDLE& Renderer::GetNullTextureDescriptor() const
 
 HRESULT Renderer::AssignTextureToSlot(const int& index, Texture* texture)
 {
-    CD3DX12_CPU_DESCRIPTOR_HANDLE destDescriptor(m_PerObjectSRVHeap->GetCPUDescriptorHandleForHeapStart());
-    destDescriptor.Offset(index * GetSRVDescriptorHeapSize());
-
-    if (m_PushConstants == nullptr)
+    if (m_PerObjectTextureData == nullptr)
     {
-        Debug::LogMessage("Trying to use an invalid push constant buffer.\n");
         return E_POINTER;
     }
 
-    //m_PushConstants->TextureSlotEnabled[index] = false;
+    if (index >= MAX_TEXTURES_PER_SHADER || index < 0)
+    {
+        return E_BOUNDS;
+    }
 
-    D3D12_CPU_DESCRIPTOR_HANDLE handle = GetNullTextureDescriptor();
+    m_PerObjectTextureData->TextureSlotIDs[index] = 0;
 
     if (texture != nullptr)
     {
-        if (texture->IsLoaded())
-        {
-            handle = texture->GetCPUHandle();
-            m_PushConstants->TextureIndex = texture->GetID();
-        }
+        m_PerObjectTextureData->TextureSlotIDs[index] = texture->GetID();
     }
-
-    //m_Device->CopyDescriptorsSimple(1, destDescriptor, handle, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
     UploadPushConstants();
 
@@ -416,14 +412,12 @@ void Renderer::BeginOrthographicDrawing(ConstantBuffer& constantBuffer)
 {
     DirectX::XMFLOAT4X4 vm = GetViewMatrix();
 
-    DirectX::XMStoreFloat4x4(&m_PushConstants->World, DirectX::XMMatrixIdentity());
-    DirectX::XMStoreFloat4x4(&m_PushConstants->View, (DirectX::XMLoadFloat4x4(&vm)));
-    DirectX::XMStoreFloat4x4(&m_PushConstants->Projection, (DirectX::XMLoadFloat4x4(&GetOrthographicProjectionMatrix())));
+    DirectX::XMStoreFloat4x4(&m_PerObjectMatrixData->World, DirectX::XMMatrixIdentity());
+    DirectX::XMStoreFloat4x4(&m_PerObjectMatrixData->ViewProjection, DirectX::XMMatrixTranspose(DirectX::XMLoadFloat4x4(&vm) * DirectX::XMLoadFloat4x4(&GetOrthographicProjectionMatrix())));
+
     UploadPushConstants();
     
     UpdateConstantBuffer(constantBuffer);
-
-
 
     m_CommandList->SetPipelineState(m_OrthoPipeline);
 }
@@ -759,22 +753,6 @@ HRESULT Renderer::CreateDescriptorHeaps()
 
     m_MainSRVHeap->SetName(L"Main CBV/SRV/UAV Heap");
 
-
-    D3D12_DESCRIPTOR_HEAP_DESC drawDescriptorHeapDesc{};
-    drawDescriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-    drawDescriptorHeapDesc.NumDescriptors = MAX_LOADABLE_TEXTURES;
-    drawDescriptorHeapDesc.NodeMask = 0;
-    drawDescriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAGS::D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-    m_Device->CreateDescriptorHeap(&drawDescriptorHeapDesc, IID_PPV_ARGS(&m_PerObjectSRVHeap));
-
-    if (FAILED(result))
-    {
-        Debug::LogSevere("Failed to create per object SRV descriptor heap.\n");
-        return result;
-    }
-
-    m_PerObjectSRVHeap->SetName(L"Draw Call CBV/SRV/UAV Heap");
-
     return result;
 }
 
@@ -796,12 +774,6 @@ void Renderer::DestroyDescriptorHeaps()
     {
         m_MainSRVHeap->Release();
         m_MainSRVHeap = nullptr;
-    }
-
-    if (m_PerObjectSRVHeap != nullptr)
-    {
-        m_PerObjectSRVHeap->Release();
-        m_PerObjectSRVHeap = nullptr;
     }
 }
 
@@ -950,8 +922,8 @@ HRESULT Renderer::UpdateViewportAndScissorRect()
     m_ScissorRect.right = m_WindowWidth;
     m_ScissorRect.bottom = m_WindowHeight;
     
-    DirectX::XMStoreFloat4x4(&m_PerspProjectionMatrix, DirectX::XMMatrixTranspose(DirectX::XMMatrixPerspectiveFovLH(90.0f * (3.1415926535f / 180.0f), (float)m_WindowWidth / (float)m_WindowHeight, DEFAULT_NEAR_PLANE, DEFAULT_FAR_PLANE)));
-    DirectX::XMStoreFloat4x4(&m_OrthoProjectionMatrix, DirectX::XMMatrixTranspose(DirectX::XMMatrixOrthographicLH((float)m_WindowWidth, (float)m_WindowHeight, FLT_EPSILON, DEFAULT_FAR_PLANE)));
+    DirectX::XMStoreFloat4x4(&m_PerspProjectionMatrix, (DirectX::XMMatrixPerspectiveFovLH(90.0f * (3.1415926535f / 180.0f), (float)m_WindowWidth / (float)m_WindowHeight, DEFAULT_NEAR_PLANE, DEFAULT_FAR_PLANE)));
+    DirectX::XMStoreFloat4x4(&m_OrthoProjectionMatrix, (DirectX::XMMatrixOrthographicLH((float)m_WindowWidth, (float)m_WindowHeight, FLT_EPSILON, DEFAULT_FAR_PLANE)));
 
     return S_OK;
 }
@@ -1158,7 +1130,7 @@ void Renderer::DestroyConstantBufferHeap()
 
 HRESULT Renderer::CreateRootSignatureAndDescriptorTable()
 {
-    D3D12_ROOT_PARAMETER slotRootParameters[4]{};
+    D3D12_ROOT_PARAMETER slotRootParameters[5]{};
 
     //CBV
     D3D12_ROOT_DESCRIPTOR perFrameConstantBufferDescriptor{};
@@ -1169,25 +1141,37 @@ HRESULT Renderer::CreateRootSignatureAndDescriptorTable()
     slotRootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY::D3D12_SHADER_VISIBILITY_ALL;
 
     //Push Constants
-    D3D12_ROOT_CONSTANTS rootConstants{};
-    rootConstants.Num32BitValues = sizeof(PushConstants) / sizeof(UINT32);
-    rootConstants.RegisterSpace = 0;
-    rootConstants.ShaderRegister = 1;
-    D3D12_ROOT_DESCRIPTOR pushConstantDescriptor{};
-    pushConstantDescriptor.RegisterSpace = rootConstants.RegisterSpace;
-    pushConstantDescriptor.ShaderRegister = rootConstants.ShaderRegister;
+    D3D12_ROOT_CONSTANTS matrixDataRootConstants{};
+    matrixDataRootConstants.Num32BitValues = sizeof(PerObjectMatrixData) / sizeof(UINT32);
+    matrixDataRootConstants.RegisterSpace = 0;
+    matrixDataRootConstants.ShaderRegister = 1;
+    D3D12_ROOT_DESCRIPTOR matrixDataDescriptor{};
+    matrixDataDescriptor.RegisterSpace = matrixDataRootConstants.RegisterSpace;
+    matrixDataDescriptor.ShaderRegister = matrixDataRootConstants.ShaderRegister;
     slotRootParameters[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE::D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
-    slotRootParameters[1].Descriptor = pushConstantDescriptor;
+    slotRootParameters[1].Descriptor = matrixDataDescriptor;
     slotRootParameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY::D3D12_SHADER_VISIBILITY_ALL;
-    slotRootParameters[1].Constants = rootConstants;
+    slotRootParameters[1].Constants = matrixDataRootConstants;
+
+    D3D12_ROOT_CONSTANTS textureDataRootConstants{};
+    textureDataRootConstants.Num32BitValues = sizeof(PerObjectTextureData) / sizeof(UINT32);
+    textureDataRootConstants.RegisterSpace = 0;
+    textureDataRootConstants.ShaderRegister = 2;
+    D3D12_ROOT_DESCRIPTOR textureDataDescriptor{};
+    textureDataDescriptor.RegisterSpace = textureDataRootConstants.RegisterSpace;
+    textureDataDescriptor.ShaderRegister = textureDataRootConstants.ShaderRegister;
+    slotRootParameters[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE::D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+    slotRootParameters[2].Descriptor = textureDataDescriptor;
+    slotRootParameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY::D3D12_SHADER_VISIBILITY_ALL;
+    slotRootParameters[2].Constants = textureDataRootConstants;
 
     //Lighting Constant Buffer
     D3D12_ROOT_DESCRIPTOR lightingConstantBufferDescriptor{};
     lightingConstantBufferDescriptor.RegisterSpace = 0;
-    lightingConstantBufferDescriptor.ShaderRegister = 2;
-    slotRootParameters[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-    slotRootParameters[2].Descriptor = lightingConstantBufferDescriptor;
-    slotRootParameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY::D3D12_SHADER_VISIBILITY_ALL;
+    lightingConstantBufferDescriptor.ShaderRegister = 3;
+    slotRootParameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    slotRootParameters[3].Descriptor = lightingConstantBufferDescriptor;
+    slotRootParameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY::D3D12_SHADER_VISIBILITY_ALL;
 
     //SRV Table
     D3D12_DESCRIPTOR_RANGE descriptorTableRange[1]{};
@@ -1199,9 +1183,9 @@ HRESULT Renderer::CreateRootSignatureAndDescriptorTable()
     D3D12_ROOT_DESCRIPTOR_TABLE descriptorTable{};
     descriptorTable.NumDescriptorRanges = _countof(descriptorTableRange);
     descriptorTable.pDescriptorRanges = &descriptorTableRange[0];
-    slotRootParameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-    slotRootParameters[3].DescriptorTable = descriptorTable;
-    slotRootParameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    slotRootParameters[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    slotRootParameters[4].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    slotRootParameters[4].DescriptorTable = descriptorTable;
 
     D3D12_STATIC_SAMPLER_DESC staticSamplerDesc[1]{};
     staticSamplerDesc[0].Filter = D3D12_FILTER::D3D12_FILTER_COMPARISON_MIN_LINEAR_MAG_POINT_MIP_LINEAR;
@@ -1553,18 +1537,6 @@ UINT Renderer::GetSRVDescriptorHeapSize() const
     return m_CBVSRVDescriptorHeapSize;
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE Renderer::GetDrawingSRVDescriptorHeapStartCPU() const
-{
-    CUSTOM_ASSERT((m_PerObjectSRVHeap != nullptr));
-    return m_PerObjectSRVHeap->GetCPUDescriptorHandleForHeapStart();
-}
-
-D3D12_GPU_DESCRIPTOR_HANDLE Renderer::GetDrawingSRVDescriptorHeapStartGPU() const
-{
-    CUSTOM_ASSERT((m_PerObjectSRVHeap != nullptr));
-    return m_PerObjectSRVHeap->GetGPUDescriptorHandleForHeapStart();
-}
-
 D3D12_CPU_DESCRIPTOR_HANDLE Renderer::GetMainSRVDescriptorHeapStartCPU() const
 {
     CUSTOM_ASSERT((m_MainSRVHeap != nullptr));
@@ -1700,20 +1672,26 @@ void Renderer::SetClearColour(const DirectX::XMFLOAT4& newColour)
     m_ClearColour = newColour;
 }
 
-PushConstants& Renderer::GetPushConstants()
+PerObjectMatrixData& Renderer::GetPerObjectMatrixData()
 {
-    return *m_PushConstants;
+    return *m_PerObjectMatrixData;
+}
+
+PerObjectTextureData& Renderer::GetPerObjectTextureData()
+{
+    return *m_PerObjectTextureData;
 }
 
 void Renderer::UploadPushConstants()
 {
-    m_CommandList->SetGraphicsRoot32BitConstants(1, sizeof(PushConstants) / sizeof(UINT32), m_PushConstants, 0);
+    m_CommandList->SetGraphicsRoot32BitConstants(1, sizeof(PerObjectMatrixData) / sizeof(UINT32), m_PerObjectMatrixData, 0);
+    m_CommandList->SetGraphicsRoot32BitConstants(2, sizeof(PerObjectTextureData) / sizeof(UINT32), m_PerObjectTextureData, 0);
 }
 
 HRESULT Renderer::UpdateWorldMatrix(const DirectX::XMFLOAT4X4& worldMatrix)
 {
     CUSTOM_ASSERT(m_IsInitialised);
-    m_PushConstants->World = worldMatrix;
+    m_PerObjectMatrixData->World = worldMatrix;
     UploadPushConstants();
     return S_OK;
 }
@@ -1721,7 +1699,7 @@ HRESULT Renderer::UpdateWorldMatrix(const DirectX::XMFLOAT4X4& worldMatrix)
 HRESULT Renderer::UpdateMaterialBuffer(const Material& material)
 {
     CUSTOM_ASSERT(m_IsInitialised);
-    //m_PushConstants->MaterialData = material;
+    m_PerObjectTextureData->MaterialData = material;
     UploadPushConstants();
     return S_OK;
 }
@@ -1732,7 +1710,7 @@ HRESULT Renderer::UpdateLightingBuffer(const LightBuffer& lb)
 
     if (m_LightBufferAddressArray[m_CurrentBackbufferIndex] != nullptr)
     {
-        m_CommandList->SetGraphicsRootConstantBufferView(2, m_LightBufferGPUUploaderArray[m_CurrentBackbufferIndex]->GetGPUVirtualAddress());
+        m_CommandList->SetGraphicsRootConstantBufferView(3, m_LightBufferGPUUploaderArray[m_CurrentBackbufferIndex]->GetGPUVirtualAddress());
         memcpy(m_LightBufferAddressArray[m_CurrentBackbufferIndex], &lb, sizeof(LightBuffer));
         return S_OK;
     }
@@ -1791,10 +1769,11 @@ void Renderer::ClearFrame()
     m_CommandList->SetGraphicsRootSignature(m_RootSignature);
 
     ID3D12DescriptorHeap* heaps[] = { m_MainSRVHeap };
-    m_CommandList->SetDescriptorHeaps(_countof(heaps), heaps);
+    m_CommandList->SetDescriptorHeaps(_countof(heaps), heaps);  
 
     CD3DX12_GPU_DESCRIPTOR_HANDLE srvHeap(heaps[0]->GetGPUDescriptorHandleForHeapStart());
-    m_CommandList->SetGraphicsRootDescriptorTable(3, srvHeap);
+    m_CommandList->SetGraphicsRootDescriptorTable(4, srvHeap);
+    m_CommandList->SetGraphicsRootSignature(m_RootSignature);
 
     m_CommandList->SetPipelineState(m_DefaultPipeline);
 

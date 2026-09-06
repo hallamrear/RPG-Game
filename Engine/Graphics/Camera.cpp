@@ -10,7 +10,7 @@ Camera::Camera() : EventHandler()
 	m_RightVector = { 1.0f, 0.0f, 0.0f };
 	m_UpVector = { 0.0f, 1.0f, 0.0f };
 	m_ForwardVector = { 0.0f, 0.0f, 1.0f };
-	m_Translation = { 0.0f, 0.0f, 0.0f };
+	m_Translation = { -1.00000000f, 90.4619980f, -171.185501f };
 	UpdateTransformMatrix();
 }
 
@@ -121,6 +121,6 @@ bool Camera::HandleEvent(const float& deltaTime, const Event& event)
 const DirectX::XMFLOAT4X4 Camera::GetViewMatrix() const
 {
 	DirectX::XMFLOAT4X4 view;
-	DirectX::XMStoreFloat4x4(&view, DirectX::XMMatrixInverse(nullptr, DirectX::XMMatrixTranspose(DirectX::XMLoadFloat4x4(&m_WorldMatrix))));
+	DirectX::XMStoreFloat4x4(&view, DirectX::XMMatrixInverse(nullptr, DirectX::XMLoadFloat4x4(&m_WorldMatrix)));
 	return view;
 }

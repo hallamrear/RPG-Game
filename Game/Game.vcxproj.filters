@@ -111,7 +111,7 @@
     <Image Include="Resources\colormap-5.png">
       <Filter>Resource Files</Filter>
     </Image>
-    <Image Include="Resources\ImageC.png">
+    <Image Include="Resources\RS_Test.png">
       <Filter>Resource Files</Filter>
     </Image>
     <Image Include="Resources\ImageA.png">
@@ -120,7 +120,7 @@
     <Image Include="Resources\ImageB.png">
       <Filter>Resource Files</Filter>
     </Image>
-    <Image Include="Resources\RS_Test.png">
+    <Image Include="Resources\ImageC.png">
       <Filter>Resource Files</Filter>
     </Image>
   </ItemGroup>
