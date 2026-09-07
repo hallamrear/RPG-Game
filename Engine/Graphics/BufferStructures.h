@@ -32,6 +32,7 @@ struct PerObjectTextureData
 {
 	/* 32b */ Material MaterialData;
 	/* 32b * MAX_TEXTURES_PER_SHADER */ UINT32 TextureSlotIDs[MAX_TEXTURES_PER_SHADER];
+	UINT32 Padding[3];
 
 	PerObjectTextureData();
 	~PerObjectTextureData();

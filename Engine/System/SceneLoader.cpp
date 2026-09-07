@@ -176,16 +176,14 @@ bool SceneLoader::LoadSceneFromGLTF(Renderer& renderer, World& world, tinygltf::
             {
                 if (model != nullptr)
                 {
-                    if (entity.GetName() == "Icosphere")
-                    {
-                        Texture* textures[3] = { new Texture(), new Texture(), new Texture() };
-                        TextureLoader::LoadFromFile(renderer, *textures[0], "Resources/ImageA.png");
-                        model->AddTexture(textures[0]);
-                        TextureLoader::LoadFromFile(renderer, *textures[1], "Resources/ImageB.png");
-                        model->AddTexture(textures[1]);
-                        TextureLoader::LoadFromFile(renderer, *textures[2], "Resources/ImageC.png");
-                        model->AddTexture(textures[2]);
-                    }
+
+                    Texture* textures[3] = { new Texture(), new Texture(), new Texture() };
+                    TextureLoader::LoadFromFile(renderer, *textures[0], "Resources/ImageA.png");
+                    model->AddTexture(textures[0]);
+                    TextureLoader::LoadFromFile(renderer, *textures[1], "Resources/ImageB.png");
+                    model->AddTexture(textures[1]);
+                    TextureLoader::LoadFromFile(renderer, *textures[2], "Resources/ImageC.png");
+                    model->AddTexture(textures[2]);
 
                     entity.SetModel(model);
                 }

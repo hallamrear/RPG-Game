@@ -26,8 +26,9 @@ cbuffer PerObjectConstantBuffer : register(b1)
 
 cbuffer PerObjectTextureBuffer : register(b2)
 {
-	/* 32b */ Material MaterialData;
-	/* 4b * MAX_TEXTURES_PER_SHADER */ uint TextureIndex[MAX_TEXTURES_PER_SHADER];
+    Material MaterialData;
+	uint TextureIndex[MAX_TEXTURES_PER_SHADER];
+    uint ExtraPadding[3];
 };
 
 struct Light

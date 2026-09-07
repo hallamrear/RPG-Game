@@ -25,16 +25,12 @@ ConstantBuffer::~ConstantBuffer()
 
 PerObjectMatrixData::PerObjectMatrixData()
 {
-	//View = DirectX::XMFLOAT4X4();
-	//Projection = DirectX::XMFLOAT4X4();
 	ViewProjection = DirectX::XMFLOAT4X4();
 	World = DirectX::XMFLOAT4X4();
 }
 
 PerObjectMatrixData::~PerObjectMatrixData()
 {
-	//View = DirectX::XMFLOAT4X4();
-	//Projection = DirectX::XMFLOAT4X4();
 	ViewProjection = DirectX::XMFLOAT4X4();
 	World = DirectX::XMFLOAT4X4();
 }
@@ -42,21 +38,34 @@ PerObjectMatrixData::~PerObjectMatrixData()
 PerObjectTextureData::PerObjectTextureData()
 {
 	memset(&TextureSlotIDs, 0x0, sizeof(TextureSlotIDs[0]) * MAX_TEXTURES_PER_SHADER);
-
 	memset(&MaterialData, 0x0, sizeof(Material));
 	MaterialData.BaseColour = { 1.0f, 1.0f, 1.0f, 1.0f };
+
+	for (size_t i = 0; i < _countof(Padding); i++)
+	{
+		Padding[i] = 0xFF;
+	}
 }
 
 PerObjectTextureData::~PerObjectTextureData()
 {
 	memset(&TextureSlotIDs, 0x0, sizeof(TextureSlotIDs[0]) * MAX_TEXTURES_PER_SHADER);
 	memset(&MaterialData, 0x0, sizeof(Material));
+
+	for (size_t i = 0; i < _countof(Padding); i++)
+	{
+		Padding[i] = 0xFF;
+	}
 }
 
 void PerObjectTextureData::Reset()
 {
-	for (size_t i = 0; i < MAX_TEXTURES_PER_SHADER; i++)
+	memset(&TextureSlotIDs, 0x0, sizeof(TextureSlotIDs[0]) * MAX_TEXTURES_PER_SHADER);
+	memset(&MaterialData, 0x0, sizeof(Material));
+	MaterialData.BaseColour = { 1.0f, 1.0f, 1.0f, 1.0f };
+
+	for (size_t i = 0; i < _countof(Padding); i++)
 	{
-		TextureSlotIDs[i] = 0;
+		Padding[i] = 0xFF;
 	}
 }

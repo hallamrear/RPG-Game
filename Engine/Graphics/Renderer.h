@@ -56,7 +56,8 @@ private:
 
 	struct ID3D12DescriptorHeap* m_RTVHeap;
 	struct ID3D12DescriptorHeap* m_DSVHeap;
-	struct ID3D12DescriptorHeap* m_MainSRVHeap;
+	struct ID3D12DescriptorHeap* m_TextureSRVHeap;
+	struct ID3D12DescriptorHeap* m_MaterialHeap;
 	HRESULT CreateDescriptorHeaps();
 	void DestroyDescriptorHeaps();
 	struct D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentBackbufferView() const;

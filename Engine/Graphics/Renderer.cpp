@@ -22,7 +22,7 @@ Renderer::Renderer()
     m_DefaultOrthoPixelShaderBlob = nullptr;
     m_DefaultOrthoVertexShaderBlob = nullptr;
     m_NullTextureDescriptor = {};
-    m_MainSRVHeap = nullptr;
+    m_TextureSRVHeap = nullptr;
     m_CBVHeaps = nullptr;
     m_ClearColour = DirectX::XMFLOAT4(0.424f, 0.725f, 0.788f, 1.0f);
     m_IsInitialised = false;
@@ -743,15 +743,15 @@ HRESULT Renderer::CreateDescriptorHeaps()
     mainSRVDescriptorHeapDesc.NumDescriptors = MAX_LOADABLE_TEXTURES;
     mainSRVDescriptorHeapDesc.NodeMask = 0;
     mainSRVDescriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAGS::D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-    m_Device->CreateDescriptorHeap(&mainSRVDescriptorHeapDesc, IID_PPV_ARGS(&m_MainSRVHeap));
+    m_Device->CreateDescriptorHeap(&mainSRVDescriptorHeapDesc, IID_PPV_ARGS(&m_TextureSRVHeap));
 
     if (FAILED(result))
     {
-        Debug::LogSevere("Failed to create main SRV descriptor heap.\n");
+        Debug::LogSevere("Failed to create texture SRV descriptor heap.\n");
         return result;
     }
 
-    m_MainSRVHeap->SetName(L"Main CBV/SRV/UAV Heap");
+    m_TextureSRVHeap->SetName(L"Texture CBV/SRV/UAV Heap");
 
     return result;
 }
@@ -770,10 +770,10 @@ void Renderer::DestroyDescriptorHeaps()
         m_DSVHeap = nullptr;
     }
 
-    if (m_MainSRVHeap != nullptr)
+    if (m_TextureSRVHeap != nullptr)
     {
-        m_MainSRVHeap->Release();
-        m_MainSRVHeap = nullptr;
+        m_TextureSRVHeap->Release();
+        m_TextureSRVHeap = nullptr;
     }
 }
 
@@ -1130,62 +1130,68 @@ void Renderer::DestroyConstantBufferHeap()
 
 HRESULT Renderer::CreateRootSignatureAndDescriptorTable()
 {
-    D3D12_ROOT_PARAMETER slotRootParameters[5]{};
+    CD3DX12_ROOT_PARAMETER slotRootParameters[5] = {};
 
     //CBV
-    D3D12_ROOT_DESCRIPTOR perFrameConstantBufferDescriptor{};
-    perFrameConstantBufferDescriptor.RegisterSpace = 0;
-    perFrameConstantBufferDescriptor.ShaderRegister = 0;
     slotRootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-    slotRootParameters[0].Descriptor = perFrameConstantBufferDescriptor;
     slotRootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY::D3D12_SHADER_VISIBILITY_ALL;
+    slotRootParameters[0].Descriptor.RegisterSpace = 0;
+    slotRootParameters[0].Descriptor.ShaderRegister = 0;
 
     //Push Constants
-    D3D12_ROOT_CONSTANTS matrixDataRootConstants{};
-    matrixDataRootConstants.Num32BitValues = sizeof(PerObjectMatrixData) / sizeof(UINT32);
-    matrixDataRootConstants.RegisterSpace = 0;
-    matrixDataRootConstants.ShaderRegister = 1;
-    D3D12_ROOT_DESCRIPTOR matrixDataDescriptor{};
-    matrixDataDescriptor.RegisterSpace = matrixDataRootConstants.RegisterSpace;
-    matrixDataDescriptor.ShaderRegister = matrixDataRootConstants.ShaderRegister;
     slotRootParameters[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE::D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
-    slotRootParameters[1].Descriptor = matrixDataDescriptor;
     slotRootParameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY::D3D12_SHADER_VISIBILITY_ALL;
-    slotRootParameters[1].Constants = matrixDataRootConstants;
+    slotRootParameters[1].Descriptor.RegisterSpace = 0;
+    slotRootParameters[1].Descriptor.ShaderRegister = 1;
+    slotRootParameters[1].Constants.RegisterSpace = 0;
+    slotRootParameters[1].Constants.ShaderRegister = 1;
+    slotRootParameters[1].Constants.Num32BitValues = sizeof(PerObjectMatrixData) / sizeof(UINT32);
 
-    D3D12_ROOT_CONSTANTS textureDataRootConstants{};
-    textureDataRootConstants.Num32BitValues = sizeof(PerObjectTextureData) / sizeof(UINT32);
-    textureDataRootConstants.RegisterSpace = 0;
-    textureDataRootConstants.ShaderRegister = 2;
-    D3D12_ROOT_DESCRIPTOR textureDataDescriptor{};
-    textureDataDescriptor.RegisterSpace = textureDataRootConstants.RegisterSpace;
-    textureDataDescriptor.ShaderRegister = textureDataRootConstants.ShaderRegister;
     slotRootParameters[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE::D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
-    slotRootParameters[2].Descriptor = textureDataDescriptor;
     slotRootParameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY::D3D12_SHADER_VISIBILITY_ALL;
-    slotRootParameters[2].Constants = textureDataRootConstants;
+    slotRootParameters[2].Descriptor.RegisterSpace = 0;
+    slotRootParameters[2].Descriptor.ShaderRegister = 2;
+    slotRootParameters[2].Constants.RegisterSpace = 0;
+    slotRootParameters[2].Constants.ShaderRegister = 2;
+    slotRootParameters[2].Constants.Num32BitValues = sizeof(PerObjectTextureData) / sizeof(UINT32);
 
     //Lighting Constant Buffer
-    D3D12_ROOT_DESCRIPTOR lightingConstantBufferDescriptor{};
-    lightingConstantBufferDescriptor.RegisterSpace = 0;
-    lightingConstantBufferDescriptor.ShaderRegister = 3;
     slotRootParameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-    slotRootParameters[3].Descriptor = lightingConstantBufferDescriptor;
     slotRootParameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY::D3D12_SHADER_VISIBILITY_ALL;
-
+    slotRootParameters[3].Descriptor.RegisterSpace = 0;
+    slotRootParameters[3].Descriptor.ShaderRegister = 3;
+    
     //SRV Table
-    D3D12_DESCRIPTOR_RANGE descriptorTableRange[1]{};
-    descriptorTableRange[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-    descriptorTableRange[0].NumDescriptors = MAX_LOADABLE_TEXTURES;
-    descriptorTableRange[0].BaseShaderRegister = 0;
-    descriptorTableRange[0].RegisterSpace = 0;
-    descriptorTableRange[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-    D3D12_ROOT_DESCRIPTOR_TABLE descriptorTable{};
-    descriptorTable.NumDescriptorRanges = _countof(descriptorTableRange);
-    descriptorTable.pDescriptorRanges = &descriptorTableRange[0];
+    D3D12_DESCRIPTOR_RANGE descriptorTableRange{};
+    descriptorTableRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    descriptorTableRange.NumDescriptors = MAX_LOADABLE_TEXTURES;
+    descriptorTableRange.BaseShaderRegister = 0;
+    descriptorTableRange.RegisterSpace = 0;
+    descriptorTableRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
     slotRootParameters[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
     slotRootParameters[4].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-    slotRootParameters[4].DescriptorTable = descriptorTable;
+    slotRootParameters[4].Descriptor.RegisterSpace = 0;
+    slotRootParameters[4].Descriptor.ShaderRegister = 4;
+    slotRootParameters[4].DescriptorTable.NumDescriptorRanges = 1;
+    slotRootParameters[4].DescriptorTable.pDescriptorRanges = &descriptorTableRange;
+
+    memset(&slotRootParameters[0], 0x0, sizeof(D3D12_ROOT_PARAMETER) * 5);
+
+
+
+    slotRootParameters[0].InitAsConstantBufferView(0);
+    slotRootParameters[1].InitAsConstants((sizeof(PerObjectMatrixData) / sizeof(UINT32)), 1);
+    slotRootParameters[2].InitAsConstants((sizeof(PerObjectTextureData) / sizeof(UINT32)), 2);
+    slotRootParameters[3].InitAsConstantBufferView(3);
+    slotRootParameters[4].InitAsDescriptorTable(1, &descriptorTableRange);
+
+
+
+
+
+
+
 
     D3D12_STATIC_SAMPLER_DESC staticSamplerDesc[1]{};
     staticSamplerDesc[0].Filter = D3D12_FILTER::D3D12_FILTER_COMPARISON_MIN_LINEAR_MAG_POINT_MIP_LINEAR;
@@ -1202,10 +1208,12 @@ HRESULT Renderer::CreateRootSignatureAndDescriptorTable()
     staticSamplerDesc[0].RegisterSpace = 0;
     staticSamplerDesc[0].ShaderVisibility = D3D12_SHADER_VISIBILITY::D3D12_SHADER_VISIBILITY_PIXEL;
 
+
     CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc{};
     rootSignatureDesc.Init(
         _countof(slotRootParameters), slotRootParameters,
         _countof(staticSamplerDesc), &staticSamplerDesc[0],
+        D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED |
         D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
         D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
         D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
@@ -1258,8 +1266,6 @@ HRESULT Renderer::CreateRootSignatureAndDescriptorTable()
     }
 
     m_RootSignature->SetName(L"Root Signature");
-
-    m_CommandList->SetGraphicsRootSignature(m_RootSignature);
 
     return S_OK;
 }
@@ -1539,14 +1545,14 @@ UINT Renderer::GetSRVDescriptorHeapSize() const
 
 D3D12_CPU_DESCRIPTOR_HANDLE Renderer::GetMainSRVDescriptorHeapStartCPU() const
 {
-    CUSTOM_ASSERT((m_MainSRVHeap != nullptr));
-    return m_MainSRVHeap->GetCPUDescriptorHandleForHeapStart();
+    CUSTOM_ASSERT((m_TextureSRVHeap != nullptr));
+    return m_TextureSRVHeap->GetCPUDescriptorHandleForHeapStart();
 }
 
 D3D12_GPU_DESCRIPTOR_HANDLE Renderer::GetMainSRVDescriptorHeapStartGPU() const
 {
-    CUSTOM_ASSERT((m_MainSRVHeap != nullptr));
-    return m_MainSRVHeap->GetGPUDescriptorHandleForHeapStart();
+    CUSTOM_ASSERT((m_TextureSRVHeap != nullptr));
+    return m_TextureSRVHeap->GetGPUDescriptorHandleForHeapStart();
 }
 
 HRESULT Renderer::ExecuteAndResetCommandList()
@@ -1684,6 +1690,8 @@ PerObjectTextureData& Renderer::GetPerObjectTextureData()
 
 void Renderer::UploadPushConstants()
 {
+    size_t a = sizeof(PerObjectMatrixData) / sizeof(UINT32);
+
     m_CommandList->SetGraphicsRoot32BitConstants(1, sizeof(PerObjectMatrixData) / sizeof(UINT32), m_PerObjectMatrixData, 0);
     m_CommandList->SetGraphicsRoot32BitConstants(2, sizeof(PerObjectTextureData) / sizeof(UINT32), m_PerObjectTextureData, 0);
 }
@@ -1766,14 +1774,17 @@ void Renderer::ClearFrame()
     m_CommandList->ClearRenderTargetView(backBufferHandle, Colour, 0, nullptr);
     m_CommandList->OMSetRenderTargets(1, &backBufferHandle, true, &dsvBufferHandle);
 
-    m_CommandList->SetGraphicsRootSignature(m_RootSignature);
+    ID3D12DescriptorHeap* heaps[] = { m_TextureSRVHeap };
+    m_CommandList->SetDescriptorHeaps(_countof(heaps), heaps);
 
-    ID3D12DescriptorHeap* heaps[] = { m_MainSRVHeap };
-    m_CommandList->SetDescriptorHeaps(_countof(heaps), heaps);  
+    m_CommandList->SetGraphicsRootSignature(m_RootSignature);
+    
+    m_CommandList->SetGraphicsRootConstantBufferView(0, m_ConstantBufferGPUUploaderArray[m_CurrentBackbufferIndex]->GetGPUVirtualAddress());
+    UploadPushConstants();
+    m_CommandList->SetGraphicsRootConstantBufferView(3, m_LightBufferGPUUploaderArray[m_CurrentBackbufferIndex]->GetGPUVirtualAddress());
 
     CD3DX12_GPU_DESCRIPTOR_HANDLE srvHeap(heaps[0]->GetGPUDescriptorHandleForHeapStart());
     m_CommandList->SetGraphicsRootDescriptorTable(4, srvHeap);
-    m_CommandList->SetGraphicsRootSignature(m_RootSignature);
 
     m_CommandList->SetPipelineState(m_DefaultPipeline);
 
